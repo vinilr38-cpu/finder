@@ -15,7 +15,8 @@ import {
   where,
   onSnapshot,
   doc,
-  updateDoc
+  updateDoc,
+  serverTimestamp
 } from 'firebase/firestore';
 import DraggableLocationPicker from '../components/DraggableLocationPicker';
 import BookingChatModal from '../components/BookingChatModal';
@@ -270,13 +271,14 @@ export default function ProviderDashboard() {
     }
   };
 
-  // 6. ACTION: Mark as Completed -> Updates status to 'completed' in Firestore
+  // 6. ACTION: Mark as Completed -> Updates status to 'completed' and completedAt in Firestore
   const handleCompleteJob = async (job) => {
     try {
       await updateDoc(doc(db, 'bookings', job.id), {
-        status: 'completed'
+        status: 'completed',
+        completedAt: serverTimestamp()
       });
-      setNotification(`🎉 Job completed! Added ₹${job.price} to your earnings.`);
+      setNotification(`🎉 Job completed! Marked booking for ${job.customerName} as completed.`);
     } catch (err) {
       console.error('Error completing job:', err);
       alert('Could not complete job: ' + err.message);
@@ -780,10 +782,10 @@ export default function ProviderDashboard() {
 
                     <button
                       onClick={() => handleCompleteJob(job)}
-                      className="w-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center space-x-2 cursor-pointer"
+                      className="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center space-x-2 cursor-pointer shadow-xs"
                     >
-                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                      <span>Mark as Completed & Collect ₹{job.price}</span>
+                      <CheckCircle2 className="h-4 w-4 text-white" />
+                      <span>Mark as Completed</span>
                     </button>
                   </div>
                 </div>

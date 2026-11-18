@@ -5,7 +5,7 @@ import {
   Wrench, Zap, Sparkles, Hammer,
   CheckCircle2, X, ChevronRight, User as UserIcon,
   Crosshair, Loader2, Phone, AlertCircle, Radio, Wind,
-  Bookmark, XCircle, MessageSquare
+  Bookmark, XCircle, MessageSquare, Star
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
@@ -19,10 +19,12 @@ import {
   addDoc,
   serverTimestamp,
   doc,
-  updateDoc
+  updateDoc,
+  getDoc
 } from 'firebase/firestore';
 import AddressSearchBar from '../components/AddressSearchBar';
 import BookingChatModal from '../components/BookingChatModal';
+import ReviewModal from '../components/ReviewModal';
 import { getWhatsAppUrl, WhatsAppIcon } from '../utils/whatsapp';
 
 // Customer Center Coordinates (Hyderabad)
@@ -198,11 +200,14 @@ export default function CustomerDashboard() {
   const [selectedProvider, setSelectedProvider] = useState(null);
   const [mapTarget, setMapTarget] = useState(null);
 
-  // Booking modal & Real-time chat states
+  // Booking modal & Real-time chat & Review states
   const [activeBookingProvider, setActiveBookingProvider] = useState(null);
   const [isSubmittingBooking, setIsSubmittingBooking] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(null);
   const [activeChatBooking, setActiveChatBooking] = useState(null);
+  const [activeReviewBooking, setActiveReviewBooking] = useState(null);
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [reviewSuccessToast, setReviewSuccessToast] = useState(false);
 
   // Form states for booking modal
   const [serviceDate, setServiceDate] = useState('');
@@ -258,6 +263,64 @@ export default function CustomerDashboard() {
     }
   };
 
+  // Submit 5-star review, save to reviews & recalculate provider average rating in Firestore
+  const handleReviewSubmit = async ({ rating, reviewText }) => {
+    if (!activeReviewBooking) return;
+    setIsSubmittingReview(true);
+
+    try {
+      // 1. Update the booking document in Firestore
+      await updateDoc(doc(db, 'bookings', activeReviewBooking.id), {
+        reviewed: true,
+        rating,
+        reviewText: reviewText || '',
+        reviewedAt: serverTimestamp()
+      });
+
+      // 2. Add a new document to the reviews collection
+      await addDoc(collection(db, 'reviews'), {
+        bookingId: activeReviewBooking.id,
+        providerId: activeReviewBooking.providerId,
+        customerId: activeReviewBooking.customerId || user?.uid || user?.id,
+        customerName: activeReviewBooking.customerName || user?.name || 'Customer',
+        rating,
+        reviewText: reviewText || '',
+        createdAt: serverTimestamp()
+      });
+
+      // 3. Fetch provider document, calculate new average rating and increment reviewCount
+      if (activeReviewBooking.providerId) {
+        const providerRef = doc(db, 'users', activeReviewBooking.providerId);
+        const providerSnap = await getDoc(providerRef);
+
+        let oldRating = 0;
+        let oldCount = 0;
+        if (providerSnap.exists()) {
+          const pData = providerSnap.data();
+          oldRating = Number(pData.rating) || 0;
+          oldCount = Number(pData.reviewCount) || 0;
+        }
+
+        const newCount = oldCount + 1;
+        const newRating = Number((((oldRating * oldCount) + rating) / newCount).toFixed(1));
+
+        await updateDoc(providerRef, {
+          rating: newRating,
+          reviewCount: newCount
+        });
+      }
+
+      setActiveReviewBooking(null);
+      setReviewSuccessToast(true);
+      setTimeout(() => setReviewSuccessToast(false), 4000);
+    } catch (err) {
+      console.error('Failed to submit review:', err);
+      alert('Could not submit review: ' + err.message);
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
+
   // 1. FIRESTORE onSnapshot: Query users collection where role == 'provider' and isOnline == true
   useEffect(() => {
     setLoadingProviders(true);
@@ -285,7 +348,9 @@ export default function CustomerDashboard() {
             lat: Number(data.lat) || CUSTOMER_LOCATION.lat,
             lng: Number(data.lng) || CUSTOMER_LOCATION.lng,
             isOnline: data.isOnline === true,
-            email: data.email || ''
+            email: data.email || '',
+            rating: data.rating !== undefined ? Number(data.rating) : null,
+            reviewCount: data.reviewCount !== undefined ? Number(data.reviewCount) : 0
           });
         });
 
@@ -310,7 +375,9 @@ export default function CustomerDashboard() {
                 lat: Number(data.lat) || CUSTOMER_LOCATION.lat,
                 lng: Number(data.lng) || CUSTOMER_LOCATION.lng,
                 isOnline: true,
-                email: data.email || ''
+                email: data.email || '',
+                rating: data.rating !== undefined ? Number(data.rating) : null,
+                reviewCount: data.reviewCount !== undefined ? Number(data.reviewCount) : 0
               });
             }
           });
@@ -707,6 +774,24 @@ export default function CustomerDashboard() {
                               </span>
                             </div>
 
+                            {/* Live Rating or New Provider Badge */}
+                            <div className="flex items-center space-x-2 mt-1">
+                              {provider.reviewCount && provider.reviewCount > 0 ? (
+                                <div className="inline-flex items-center space-x-1 bg-amber-50 border border-amber-200/90 text-amber-900 px-2 py-0.5 rounded-md text-xs font-extrabold shadow-2xs">
+                                  <Star className="h-3 w-3 fill-amber-400 text-amber-500" />
+                                  <span>★ {Number(provider.rating || 5).toFixed(1)}</span>
+                                  <span className="text-slate-400 font-medium">
+                                    ({provider.reviewCount} review{provider.reviewCount === 1 ? '' : 's'})
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="inline-flex items-center bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-[10px] font-bold px-2 py-0.5 rounded-md">
+                                  <Sparkles className="h-2.5 w-2.5 mr-1 text-emerald-500" />
+                                  New Provider
+                                </span>
+                              )}
+                            </div>
+
                             <div className="flex items-center space-x-2 mt-0.5">
                               <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-md">
                                 {provider.serviceCategory || provider.role}
@@ -865,6 +950,25 @@ export default function CustomerDashboard() {
 
                         {/* Real-time Call, WhatsApp and Message Options */}
                         <div className="flex flex-wrap items-center gap-1.5">
+                          {/* RATE & REVIEW FLOW (When status === 'completed') */}
+                          {booking.status === 'completed' && (
+                            booking.reviewed ? (
+                              <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center shadow-2xs">
+                                <Star className="h-3.5 w-3.5 fill-emerald-600 text-emerald-600 mr-1" />
+                                <span>Reviewed ★ {booking.rating || 5}</span>
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setActiveReviewBooking(booking)}
+                                className="bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-white px-3 py-1.5 rounded-xl font-bold text-xs transition shadow-xs flex items-center space-x-1 cursor-pointer animate-pulse"
+                              >
+                                <Star className="h-3.5 w-3.5 fill-current" />
+                                <span>Rate & Review</span>
+                              </button>
+                            )
+                          )}
+
                           {/* Call Button (<a href={`tel:${phoneNumber}`}>) */}
                           <a
                             href={`tel:${booking.providerPhone || '+91 98765 12345'}`}
@@ -1057,9 +1161,21 @@ export default function CustomerDashboard() {
                           <h4 className="font-bold text-xs text-slate-900 leading-tight">
                             {provider.name}
                           </h4>
-                          <span className="text-[11px] font-semibold text-blue-600">
-                            {provider.serviceCategory || provider.role}
-                          </span>
+                          <div className="flex items-center space-x-1.5 mt-0.5">
+                            <span className="text-[11px] font-semibold text-blue-600">
+                              {provider.serviceCategory || provider.role}
+                            </span>
+                            {provider.reviewCount && provider.reviewCount > 0 ? (
+                              <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded flex items-center">
+                                <Star className="h-2.5 w-2.5 fill-amber-400 text-amber-500 mr-0.5" />
+                                {Number(provider.rating || 5).toFixed(1)}
+                              </span>
+                            ) : (
+                              <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1 rounded">
+                                New
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
 
@@ -1266,6 +1382,27 @@ export default function CustomerDashboard() {
           currentUser={user}
           onClose={() => setActiveChatBooking(null)}
         />
+      )}
+
+      {/* 6. RATE & REVIEW MODAL */}
+      {activeReviewBooking && (
+        <ReviewModal
+          booking={activeReviewBooking}
+          isSubmitting={isSubmittingReview}
+          onSubmitReview={handleReviewSubmit}
+          onClose={() => setActiveReviewBooking(null)}
+        />
+      )}
+
+      {/* REVIEW SUCCESS TOAST */}
+      {reviewSuccessToast && (
+        <div className="fixed bottom-6 right-6 bg-slate-900 text-white p-4 rounded-2xl shadow-2xl flex items-center space-x-3 border border-slate-700 z-50 animate-in slide-in-from-bottom-2 max-w-sm">
+          <Star className="h-5 w-5 fill-amber-400 text-amber-400 shrink-0" />
+          <div className="text-xs">
+            <h5 className="font-bold text-sm text-white">Review Submitted!</h5>
+            <p className="text-slate-300 mt-0.5">Thank you for rating your service provider. Provider rating updated in real-time.</p>
+          </div>
+        </div>
       )}
 
     </div>
