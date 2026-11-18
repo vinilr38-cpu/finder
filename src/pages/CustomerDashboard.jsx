@@ -417,7 +417,8 @@ export default function CustomerDashboard() {
             isOnline: data.isOnline === true,
             email: data.email || '',
             rating: data.rating !== undefined ? Number(data.rating) : null,
-            reviewCount: data.reviewCount !== undefined ? Number(data.reviewCount) : 0
+            reviewCount: data.reviewCount !== undefined ? Number(data.reviewCount) : 0,
+            isVerified: data.isVerified === true
           });
         });
 
@@ -444,7 +445,8 @@ export default function CustomerDashboard() {
                 isOnline: true,
                 email: data.email || '',
                 rating: data.rating !== undefined ? Number(data.rating) : null,
-                reviewCount: data.reviewCount !== undefined ? Number(data.reviewCount) : 0
+                reviewCount: data.reviewCount !== undefined ? Number(data.reviewCount) : 0,
+                isVerified: data.isVerified === true
               });
             }
           });
@@ -974,17 +976,31 @@ export default function CustomerDashboard() {
 
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between">
-                              <h3 className="font-bold text-slate-900 text-base truncate">
-                                {provider.name}
-                              </h3>
-                              <span className="flex items-center text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-md">
+                              <div className="flex items-center space-x-1.5 truncate pr-2">
+                                <h3 className="font-bold text-slate-900 text-base truncate">
+                                  {provider.name}
+                                </h3>
+                                {provider.isVerified && (
+                                  <span className="bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full text-[10px] font-extrabold shrink-0 shadow-2xs inline-flex items-center">
+                                    Verified ✓
+                                  </span>
+                                )}
+                              </div>
+                              <span className="flex items-center text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-md shrink-0">
                                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>
                                 Online
                               </span>
                             </div>
 
-                            {/* Live Rating and Clean Distance Badge */}
+                            {/* Live Rating, Clean Distance Badge and Verified Badge */}
                             <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                              {/* Blue Verified Badge */}
+                              {provider.isVerified && (
+                                <span className="inline-flex items-center space-x-1 bg-blue-100 text-blue-800 border border-blue-300 px-2.5 py-0.5 rounded-full text-xs font-extrabold shadow-2xs">
+                                  <span>Verified ✓</span>
+                                </span>
+                              )}
+
                               {/* Clean Distance Badge */}
                               <span className="inline-flex items-center space-x-1 bg-blue-50 text-blue-700 border border-blue-200/90 px-2.5 py-0.5 rounded-full text-xs font-extrabold shadow-2xs">
                                 <MapPin className="h-3 w-3 text-blue-600 shrink-0" />
@@ -1409,8 +1425,13 @@ export default function CustomerDashboard() {
                           {provider.name.slice(0, 2).toUpperCase()}
                         </div>
                         <div>
-                          <h4 className="font-bold text-xs text-slate-900 leading-tight">
-                            {provider.name}
+                          <h4 className="font-bold text-xs text-slate-900 leading-tight flex items-center space-x-1">
+                            <span>{provider.name}</span>
+                            {provider.isVerified && (
+                              <span className="text-[9px] font-extrabold text-blue-700 bg-blue-50 border border-blue-200 px-1 rounded">
+                                Verified ✓
+                              </span>
+                            )}
                           </h4>
                           <div className="flex items-center space-x-1.5 mt-0.5">
                             <span className="text-[11px] font-semibold text-blue-600">

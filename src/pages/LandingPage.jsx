@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard, User, Wrench, Shield, ArrowRight,
   CheckCircle2, AlertCircle, Loader2, Sparkles, Phone,
-  MapPin, Crosshair, RefreshCw, Edit3
+  MapPin, Crosshair, RefreshCw, Edit3, ShieldCheck, Lock, X
 } from 'lucide-react';
 import DraggableLocationPicker from '../components/DraggableLocationPicker';
 
@@ -42,6 +42,22 @@ export default function LandingPage() {
   // UI state
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  // Admin Demo Passcode Modal states
+  const [showAdminModal, setShowAdminModal] = useState(false);
+  const [adminPasscode, setAdminPasscode] = useState('');
+  const [adminPasscodeError, setAdminPasscodeError] = useState('');
+
+  const handleAdminAccess = (e) => {
+    e.preventDefault();
+    if (adminPasscode.trim() === 'admin123') {
+      sessionStorage.setItem('isAdminAuthenticated', 'true');
+      setShowAdminModal(false);
+      navigate('/admin');
+    } else {
+      setAdminPasscodeError("Invalid passcode. Enter 'admin123' to unlock demo access.");
+    }
+  };
 
   // Automatically redirect authenticated users to their corresponding dashboard
   useEffect(() => {
@@ -654,10 +670,91 @@ export default function LandingPage() {
 
       </main>
 
-      {/* 3. FOOTER */}
-      <footer className="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-400">
-        LocalServe • Secure Firebase Authentication & GPS Location Dispatch
+      {/* 3. FOOTER WITH ADMIN PORTAL LINK */}
+      <footer className="bg-white border-t border-slate-200 py-5 px-4 text-center text-xs text-slate-500 space-y-2">
+        <p>LocalServe • Secure Firebase Authentication & GPS Location Dispatch</p>
+        <div className="flex items-center justify-center space-x-4">
+          <button
+            type="button"
+            onClick={() => {
+              setAdminPasscode('');
+              setAdminPasscodeError('');
+              setShowAdminModal(true);
+            }}
+            className="text-slate-400 hover:text-blue-600 font-semibold transition cursor-pointer flex items-center space-x-1 hover:underline text-[11px]"
+          >
+            <ShieldCheck className="h-3.5 w-3.5" />
+            <span>Admin Portal</span>
+          </button>
+        </div>
       </footer>
+
+      {/* DEMO ADMIN PASSCODE MODAL */}
+      {showAdminModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-150">
+            <div className="bg-slate-900 p-5 text-white flex justify-between items-start">
+              <div className="flex items-center space-x-2.5">
+                <div className="p-2 bg-blue-600 rounded-xl text-white">
+                  <ShieldCheck className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base">Admin Portal Access</h3>
+                  <p className="text-xs text-slate-400">Platform Verification & Bookings</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAdminModal(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAdminAccess} className="p-5 space-y-4">
+              <div className="bg-blue-50 border border-blue-200 p-3 rounded-2xl text-xs text-blue-900 space-y-0.5">
+                <span className="font-bold block text-blue-800">Demo Passcode:</span>
+                <code className="font-mono font-black text-sm text-blue-700 bg-white px-2 py-0.5 rounded border border-blue-200 inline-block">
+                  admin123
+                </code>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+                  Enter Passcode
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <input
+                    type="password"
+                    autoFocus
+                    placeholder="e.g. admin123"
+                    value={adminPasscode}
+                    onChange={(e) => {
+                      setAdminPasscode(e.target.value);
+                      setAdminPasscodeError('');
+                    }}
+                    className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition font-mono"
+                  />
+                </div>
+                {adminPasscodeError && (
+                  <p className="text-xs text-rose-600 font-bold mt-1.5 animate-in fade-in">
+                    {adminPasscodeError}
+                  </p>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-bold py-2.5 px-4 rounded-xl transition shadow-md shadow-blue-500/20 text-sm cursor-pointer"
+              >
+                Open Admin Portal
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );

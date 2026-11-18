@@ -5,6 +5,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import LandingPage from './pages/LandingPage';
 import CustomerDashboard from './pages/CustomerDashboard';
 import ProviderDashboard from './pages/ProviderDashboard';
+import AdminDashboard from './pages/AdminDashboard';
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/admin" element={<AdminDashboard />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

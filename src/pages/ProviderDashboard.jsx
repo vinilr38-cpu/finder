@@ -708,20 +708,20 @@ export default function ProviderDashboard() {
                         request.customerPhone,
                         'Hi ' + (request.customerName || 'Customer') + ', this is ' + (request.providerName || user?.name || 'your provider') + ' regarding your ' + (request.serviceCategory || 'service') + ' booking.'
                       ) && (
-                        <a
-                          href={getWhatsAppUrl(
-                            request.customerPhone,
-                            'Hi ' + (request.customerName || 'Customer') + ', this is ' + (request.providerName || user?.name || 'your provider') + ' regarding your ' + (request.serviceCategory || 'service') + ' booking.'
-                          )}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title="Chat with Customer on WhatsApp"
-                          className="bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] text-white py-2 px-3 rounded-xl font-bold text-xs transition shadow-xs flex items-center justify-center space-x-1 cursor-pointer flex-1"
-                        >
-                          <WhatsAppIcon className="h-3.5 w-3.5" />
-                          <span>WhatsApp</span>
-                        </a>
-                      )}
+                          <a
+                            href={getWhatsAppUrl(
+                              request.customerPhone,
+                              'Hi ' + (request.customerName || 'Customer') + ', this is ' + (request.providerName || user?.name || 'your provider') + ' regarding your ' + (request.serviceCategory || 'service') + ' booking.'
+                            )}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Chat with Customer on WhatsApp"
+                            className="bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] text-white py-2 px-3 rounded-xl font-bold text-xs transition shadow-xs flex items-center justify-center space-x-1 cursor-pointer flex-1"
+                          >
+                            <WhatsAppIcon className="h-3.5 w-3.5" />
+                            <span>WhatsApp</span>
+                          </a>
+                        )}
 
                       <button
                         type="button"
