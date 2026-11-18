@@ -55,7 +55,7 @@ export default function LandingPage() {
       setShowAdminModal(false);
       navigate('/admin');
     } else {
-      setAdminPasscodeError("Invalid passcode. Enter 'admin123' to unlock demo access.");
+      setAdminPasscodeError("Invalid passcode. Enter 'admin123' to sign in.");
     }
   };
 
@@ -92,9 +92,9 @@ export default function LandingPage() {
         setIsDetectingLocation(false);
         let msg = 'Could not retrieve your location.';
         if (error.code === error.PERMISSION_DENIED) {
-          msg = 'Location permission denied. Please allow access or enter coordinates manually.';
+          msg = 'Location permission denied. Please allow access or adjust your location on the map.';
         } else if (error.code === error.TIMEOUT) {
-          msg = 'Location request timed out. Please retry or enter coordinates manually.';
+          msg = 'Location request timed out. Please retry or adjust your location on the map.';
         } else if (error.code === error.POSITION_UNAVAILABLE) {
           msg = 'Location information is currently unavailable.';
         }
@@ -215,7 +215,7 @@ export default function LandingPage() {
           </div>
 
           <div className="flex items-center space-x-2 text-xs font-semibold">
-            <span className="text-slate-400 hidden sm:inline">Firebase Authentication Active</span>
+            <span className="text-slate-500 hidden sm:inline">Available in your area</span>
             <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
           </div>
         </div>
@@ -228,7 +228,7 @@ export default function LandingPage() {
         <div className="flex-1 space-y-6 max-w-xl">
           <div className="inline-flex items-center space-x-2 bg-blue-50 border border-blue-200 text-blue-700 px-3.5 py-1.5 rounded-full text-xs font-semibold">
             <Sparkles className="h-3.5 w-3.5" />
-            <span>Secure Role-Based Portal</span>
+            <span>Verified Local Services</span>
           </div>
 
           <h1 className="text-4xl sm:text-5xl font-extrabold text-slate-900 leading-tight">
@@ -236,7 +236,7 @@ export default function LandingPage() {
           </h1>
 
           <p className="text-slate-600 text-base sm:text-lg leading-relaxed">
-            LocalServe bridges homeowners with verified plumbers, electricians, cleaners, and technicians. Sign up as a Customer to book services, or as a Service Provider to receive live jobs.
+            LocalServe connects homeowners with top-rated local technicians. Book instant visits or register as a specialist to receive customer requests.
           </p>
 
           <div className="space-y-3.5 pt-2">
@@ -244,21 +244,21 @@ export default function LandingPage() {
               <div className="h-7 w-7 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
                 <CheckCircle2 className="h-4 w-4" />
               </div>
-              <span><strong>GPS Accuracy:</strong> Detect and save exact provider coordinates to show on the live map.</span>
+              <span><strong>Local Precision:</strong> Find top-rated specialists right around your neighborhood.</span>
             </div>
 
             <div className="flex items-center space-x-3 text-slate-700 text-sm">
               <div className="h-7 w-7 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
                 <Shield className="h-4 w-4" />
               </div>
-              <span><strong>Secure Authentication:</strong> Password encryption and protected route guarantees.</span>
+              <span><strong>Verified Specialists:</strong> Background-checked professionals with verified customer ratings.</span>
             </div>
 
             <div className="flex items-center space-x-3 text-slate-700 text-sm">
               <div className="h-7 w-7 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
                 <Wrench className="h-4 w-4" />
               </div>
-              <span><strong>Live Booking Dispatch:</strong> Real-time requests with instant Accept and Decline controls.</span>
+              <span><strong>Instant Booking:</strong> Direct confirmation, in-app messaging, and one-tap calls.</span>
             </div>
           </div>
         </div>
@@ -547,13 +547,13 @@ export default function LandingPage() {
                             className="bg-red-100 hover:bg-red-200 text-red-800 px-2.5 py-1 rounded-lg font-bold transition cursor-pointer flex items-center space-x-1"
                           >
                             <RefreshCw className="h-3 w-3" />
-                            <span>Retry GPS</span>
+                            <span>Retry</span>
                           </button>
                         </div>
                       </div>
                     )}
 
-                    {/* INTERACTIVE DRAGGABLE LEAFLET MAP & NOMINATIM SEARCH BAR */}
+                    {/* INTERACTIVE LOCATION PICKER */}
                     <DraggableLocationPicker
                       coords={coordinates}
                       address={address}
@@ -570,17 +570,17 @@ export default function LandingPage() {
                       height="220px"
                       showSearchBar={true}
                       searchPlaceholder="Search your area, e.g. Indiranagar, Bengaluru"
-                      helperText="Location not exact? Click or drag the pin to your exact spot."
+                      helperText="Click or drag the pin to adjust location."
                     />
 
-                    {/* Manual Coordinates Toggle (Collapsible) */}
+                    {/* Manual Position Toggle */}
                     <div className="pt-0.5">
                       <button
                         type="button"
                         onClick={() => setIsManualLocation(!isManualLocation)}
                         className="text-[11px] text-slate-500 hover:text-emerald-700 font-medium underline cursor-pointer"
                       >
-                        {isManualLocation ? 'Hide manual coordinate inputs' : 'Fine-tune coordinates manually'}
+                        {isManualLocation ? 'Hide manual position' : 'Fine-tune position manually'}
                       </button>
 
                       {isManualLocation && (
@@ -672,7 +672,7 @@ export default function LandingPage() {
 
       {/* 3. FOOTER WITH ADMIN PORTAL LINK */}
       <footer className="bg-white border-t border-slate-200 py-5 px-4 text-center text-xs text-slate-500 space-y-2">
-        <p>LocalServe • Secure Firebase Authentication & GPS Location Dispatch</p>
+        <p>LocalServe • Connect with trusted local specialists</p>
         <div className="flex items-center justify-center space-x-4">
           <button
             type="button"
@@ -689,7 +689,7 @@ export default function LandingPage() {
         </div>
       </footer>
 
-      {/* DEMO ADMIN PASSCODE MODAL */}
+      {/* ADMIN PASSCODE MODAL */}
       {showAdminModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4">
           <div className="bg-white rounded-3xl w-[95%] max-w-md max-h-[85vh] overflow-y-auto mx-auto z-50 shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-150">
@@ -699,8 +699,8 @@ export default function LandingPage() {
                   <ShieldCheck className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base">Admin Portal Access</h3>
-                  <p className="text-xs text-slate-400">Platform Verification & Bookings</p>
+                  <h3 className="font-extrabold text-base">Admin Portal</h3>
+                  <p className="text-xs text-slate-400">Platform operations & verification</p>
                 </div>
               </div>
               <button
@@ -714,7 +714,7 @@ export default function LandingPage() {
 
             <form onSubmit={handleAdminAccess} className="p-5 space-y-4">
               <div className="bg-blue-50 border border-blue-200 p-3 rounded-2xl text-xs text-blue-900 space-y-0.5">
-                <span className="font-bold block text-blue-800">Demo Passcode:</span>
+                <span className="font-bold block text-blue-800">Passcode:</span>
                 <code className="font-mono font-black text-sm text-blue-700 bg-white px-2 py-0.5 rounded border border-blue-200 inline-block">
                   admin123
                 </code>
@@ -749,7 +749,7 @@ export default function LandingPage() {
                 type="submit"
                 className="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-bold py-2.5 px-4 rounded-xl transition shadow-md shadow-blue-500/20 text-sm cursor-pointer"
               >
-                Open Admin Portal
+                Sign In to Admin Portal
               </button>
             </form>
           </div>

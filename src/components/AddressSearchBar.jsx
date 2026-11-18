@@ -160,7 +160,7 @@ export default function AddressSearchBar({
           {isLoading ? (
             <div className="p-4 text-center text-xs text-slate-500 flex items-center justify-center space-x-2">
               <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-              <span>Searching OpenStreetMap Nominatim...</span>
+              <span>Searching locations...</span>
             </div>
           ) : error ? (
             <div className="p-3 text-xs text-red-600 flex items-center space-x-2 bg-red-50">
@@ -170,8 +170,8 @@ export default function AddressSearchBar({
           ) : results.length > 0 ? (
             <div className="py-1 max-h-60 overflow-y-auto divide-y divide-slate-100">
               <div className="px-3 py-1.5 bg-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-wider flex justify-between">
-                <span>Top Results (OpenStreetMap)</span>
-                <span>Select to reposition pin</span>
+                <span>Matching locations</span>
+                <span>Select to update</span>
               </div>
               {results.slice(0, 5).map((item, idx) => (
                 <button
@@ -185,19 +185,13 @@ export default function AddressSearchBar({
                     <p className="font-semibold text-slate-800 group-hover:text-blue-900 leading-snug line-clamp-2">
                       {item.display_name}
                     </p>
-                    <p className="text-[10px] text-slate-400 font-mono mt-0.5">
-                      Lat: {parseFloat(item.lat).toFixed(4)}, Lon: {parseFloat(item.lon).toFixed(4)}
-                    </p>
                   </div>
                 </button>
               ))}
             </div>
           ) : hasSearched ? (
-            <div className="p-4 text-center text-xs text-slate-500 space-y-1">
-              <p className="font-bold text-slate-700">No locations found</p>
-              <p className="text-[11px] text-slate-400">
-                Try searching for a broader landmark, street name, or city.
-              </p>
+            <div className="p-4 text-center text-xs text-slate-500">
+              <p className="font-medium text-slate-600">No locations found. Try a different area or landmark.</p>
             </div>
           ) : null}
         </div>

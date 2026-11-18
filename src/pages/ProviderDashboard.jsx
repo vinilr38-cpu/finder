@@ -102,7 +102,7 @@ export default function ProviderDashboard() {
       await updateDoc(doc(db, 'users', currentUid), {
         isOnline: nextState
       });
-      setNotification(`Status updated: You are now ${nextState ? 'ONLINE & visible on the customer map' : 'OFFLINE'}`);
+      setNotification(`Status updated: You are now ${nextState ? 'online' : 'offline'}`);
     } catch (err) {
       console.error('Error updating isOnline in Firestore:', err);
       setIsOnline(!nextState);
@@ -126,7 +126,7 @@ export default function ProviderDashboard() {
       };
 
       await updateDoc(doc(db, 'users', currentUid), updatePayload);
-      setNotification(`📍 Exact location confirmed and saved to Firestore! ${coords.address ? `Address: ${coords.address.slice(0, 40)}...` : `Coordinates: [${Number(coords.lat).toFixed(4)}, ${Number(coords.lng).toFixed(4)}]`}`);
+      setNotification('Location updated successfully.');
     } catch (err) {
       console.error('Error saving coordinates to Firestore:', err);
       alert('Failed to update coordinates in Firestore: ' + err.message);
@@ -161,7 +161,7 @@ export default function ProviderDashboard() {
               lat: newCoords.lat,
               lng: newCoords.lng
             });
-            setNotification(`📍 GPS coordinates updated to [${newCoords.lat.toFixed(5)}, ${newCoords.lng.toFixed(5)}] in Firestore! Customers will see your updated map pin.`);
+            setNotification('Location updated successfully.');
           } catch (err) {
             console.error('Error saving coordinates to Firestore:', err);
             alert('Failed to update coordinates in Firestore: ' + err.message);
@@ -234,7 +234,7 @@ export default function ProviderDashboard() {
         setLoadingBookings(false);
 
         if (pending.length > 0) {
-          setNotification(`🔔 Live Alert: You have ${pending.length} pending service request(s)!`);
+          setNotification(`You have ${pending.length} pending service request${pending.length === 1 ? '' : 's'}.`);
         }
       }, (error) => {
         console.error('Firestore bookings listener error:', error.message);
@@ -256,7 +256,7 @@ export default function ProviderDashboard() {
       await updateDoc(doc(db, 'bookings', request.id), {
         status: 'accepted'
       });
-      setNotification(`✅ Accepted booking from ${request.customerName}! Moved to In-Progress Jobs.`);
+      setNotification(`Accepted booking from ${request.customerName}.`);
     } catch (err) {
       console.error('Error accepting booking:', err);
       alert('Could not update booking: ' + err.message);
@@ -265,16 +265,16 @@ export default function ProviderDashboard() {
 
   // 5. ACTION: Decline / Cancel Request -> Updates status to 'cancelled' in Firestore
   const handleCancelRequest = async (request) => {
-    if (!window.confirm('Are you sure you want to cancel this booking request?')) return;
+    if (!window.confirm('Are you sure you want to decline this booking request?')) return;
     try {
       await updateDoc(doc(db, 'bookings', request.id), {
         status: 'cancelled',
         cancelledAt: serverTimestamp()
       });
-      setNotification(`Booking request #${request.id.slice(0, 6)} has been cancelled.`);
+      setNotification(`Booking request declined.`);
     } catch (err) {
-      console.error('Error cancelling booking:', err);
-      alert('Could not cancel booking: ' + err.message);
+      console.error('Error declining booking:', err);
+      alert('Could not update booking: ' + err.message);
     }
   };
 
@@ -308,7 +308,7 @@ export default function ProviderDashboard() {
         startedAt: serverTimestamp()
       });
       setOtpErrors(prev => ({ ...prev, [job.id]: null }));
-      setNotification(`🎉 Security OTP verified! Job for ${job.customerName} is now In Progress.`);
+      setNotification(`OTP verified. Job started.`);
     } catch (err) {
       console.error('Failed to verify OTP:', err);
       alert('Could not verify OTP: ' + err.message);
@@ -324,7 +324,7 @@ export default function ProviderDashboard() {
         status: 'completed',
         completedAt: serverTimestamp()
       });
-      setNotification(`🎉 Job completed! Marked booking for ${job.customerName} as completed.`);
+      setNotification(`Job completed successfully.`);
     } catch (err) {
       console.error('Error completing job:', err);
       alert('Could not complete job: ' + err.message);
@@ -350,7 +350,7 @@ export default function ProviderDashboard() {
                 LocalServe Pro
               </h1>
               <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium leading-none mt-0.5">
-                Provider Control Center • Live Firestore Sync
+                Provider Portal
               </p>
             </div>
           </div>
@@ -360,18 +360,18 @@ export default function ProviderDashboard() {
             <button
               onClick={handleUpdateLocation}
               disabled={isUpdatingLocation}
-              title="Detect and update GPS coordinates in Firestore"
+              title="Update current location"
               className="min-h-[40px] flex items-center space-x-1.5 bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 px-3 py-2 rounded-xl border border-slate-200 hover:border-emerald-300 text-xs font-semibold transition cursor-pointer shadow-2xs"
             >
               {isUpdatingLocation ? (
                 <>
                   <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-600" />
-                  <span className="hidden sm:inline">Updating GPS...</span>
+                  <span className="hidden sm:inline">Locating...</span>
                 </>
               ) : (
                 <>
                   <Crosshair className="h-3.5 w-3.5 text-emerald-600" />
-                  <span>Update My Location</span>
+                  <span>Use current location</span>
                 </>
               )}
             </button>
@@ -407,7 +407,7 @@ export default function ProviderDashboard() {
           }`}>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
 
-            {/* Status Information & Live Coords */}
+            {/* Status Information & Location */}
             <div className="space-y-2">
               <div className="flex items-center space-x-3">
                 <span className={`h-4 w-4 rounded-full relative flex items-center justify-center ${isOnline ? 'bg-white' : 'bg-slate-400'
@@ -418,26 +418,26 @@ export default function ProviderDashboard() {
                 </span>
                 <span className={`text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full ${isOnline ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
                   }`}>
-                  Status: {isOnline ? 'LIVE & VISIBLE TO CUSTOMERS' : 'CURRENTLY OFFLINE'}
+                  Status: {isOnline ? 'Available' : 'Offline'}
                 </span>
               </div>
 
               <h2 className={`text-2xl sm:text-3xl font-extrabold ${isOnline ? 'text-white' : 'text-slate-900'}`}>
-                {isOnline ? 'You Are Online — Accepting Live Customer Bookings' : 'You Are Offline — Hidden from Customer Search'}
+                {isOnline ? 'You Are Online' : 'You Are Offline'}
               </h2>
 
               <p className={`text-sm max-w-xl ${isOnline ? 'text-emerald-100' : 'text-slate-500'}`}>
                 {isOnline
-                  ? 'Your profile and location pin are visible to customers on the map. Incoming booking requests appear below in real time via Firestore onSnapshot.'
-                  : 'Flip the toggle to go Online. Your status will update in Firestore users/{uid} immediately.'}
+                  ? 'You are active and visible to nearby customers.'
+                  : 'Switch on to receive new service bookings.'}
               </p>
 
-              {/* Coordinates Badge */}
+              {/* Location Badge */}
               <div className="pt-2 flex flex-wrap items-center gap-2 text-xs">
-                <span className={`px-2.5 py-1 rounded-lg font-mono flex items-center ${isOnline ? 'bg-emerald-800/40 text-emerald-100 border border-emerald-400/30' : 'bg-slate-100 text-slate-600 border border-slate-200'
-                  }`}>
-                  <MapPin className="h-3.5 w-3.5 mr-1 text-emerald-300" />
-                  Map Coordinates: {providerCoords.lat.toFixed(4)}, {providerCoords.lng.toFixed(4)}
+                <span className={`px-2.5 py-1 rounded-lg font-medium flex items-center max-w-md truncate ${isOnline ? 'bg-emerald-800/40 text-emerald-100 border border-emerald-400/30' : 'bg-slate-100 text-slate-600 border border-slate-200'
+                  }`} title={providerAddress || 'Location set'}>
+                  <MapPin className="h-3.5 w-3.5 mr-1 text-emerald-300 shrink-0" />
+                  <span className="truncate">{providerAddress || 'Location set'}</span>
                 </span>
 
                 <button
@@ -447,7 +447,7 @@ export default function ProviderDashboard() {
                     }`}
                 >
                   <RefreshCw className={`h-3 w-3 ${isUpdatingLocation ? 'animate-spin' : ''}`} />
-                  <span>{isUpdatingLocation ? 'Locating...' : 'Update GPS'}</span>
+                  <span>{isUpdatingLocation ? 'Locating...' : 'Update location'}</span>
                 </button>
               </div>
             </div>
@@ -526,7 +526,7 @@ export default function ProviderDashboard() {
                 }}
                 onConfirm={handleConfirmLocation}
                 showConfirmButton={true}
-                confirmButtonText="Confirm & Save Spot to Firestore"
+                confirmButtonText="Save Location"
                 isSaving={isSavingLocation}
                 onDetectCurrentLocation={handleUpdateLocation}
                 isDetecting={isUpdatingLocation}
@@ -593,7 +593,7 @@ export default function ProviderDashboard() {
             <div className="flex items-center space-x-2">
               <span className="text-xs text-slate-500 flex items-center bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-xs font-medium">
                 <span className="h-2 w-2 rounded-full bg-emerald-500 mr-2"></span>
-                Filtered: <code className="font-mono text-blue-600 ml-1">providerId == {user?.uid?.slice(0, 6)}...</code>
+                Real-time updates
               </span>
             </div>
           </div>
@@ -602,18 +602,18 @@ export default function ProviderDashboard() {
           {loadingBookings ? (
             <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center flex flex-col items-center justify-center space-y-3">
               <Loader2 className="h-8 w-8 text-emerald-600 animate-spin" />
-              <p className="text-sm font-semibold text-slate-700">Connecting to bookings stream...</p>
+              <p className="text-sm font-semibold text-slate-700">Loading requests...</p>
             </div>
           ) : activeRequests.length === 0 ? (
             <div className="bg-white rounded-3xl border border-dashed border-slate-300 p-12 text-center space-y-3">
               <div className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
                 <Bell className="h-7 w-7" />
               </div>
-              <h3 className="font-bold text-slate-700 text-lg">No Pending Booking Requests</h3>
+              <h3 className="font-bold text-slate-700 text-lg">No pending requests</h3>
               <p className="text-slate-400 text-sm max-w-md mx-auto">
                 {isOnline
-                  ? "You're Online! Whenever a customer clicks 'Book Now' on your card, their live request will appear here with Accept and Decline options."
-                  : 'You are currently Offline. Turn the toggle switch to Online to start receiving customer bookings.'}
+                  ? "You're online! When customers book your services, requests will appear here."
+                  : 'You are currently offline. Turn the toggle to Online to receive bookings.'}
               </p>
             </div>
           ) : (
@@ -689,17 +689,12 @@ export default function ProviderDashboard() {
                               <span className="font-semibold text-slate-800 text-xs sm:text-sm leading-snug block break-words">
                                 {request.customerAddress || request.address}
                               </span>
-                              {(request.customerLat || request.customerLng) && (
-                                <span className="text-[10px] text-slate-500 font-mono block mt-1">
-                                  📍 Coordinates: [{Number(request.customerLat).toFixed(4)}, {Number(request.customerLng).toFixed(4)}]
-                                </span>
-                              )}
                             </div>
                           </div>
                         )}
 
                         <div className="text-[11px] text-slate-400 font-mono pt-1">
-                          Booking ID: {request.id.slice(0, 8)}...
+                          ID: #{request.id.slice(0, 6)}
                         </div>
                       </div>
                     </div>
@@ -711,7 +706,7 @@ export default function ProviderDashboard() {
                     <div className="flex flex-wrap items-center gap-2">
                       <a
                         href={`tel:${request.customerPhone || '+91 98765 43210'}`}
-                        title={`Call Customer: ${request.customerPhone || '+91 98765 43210'}`}
+                        title={`Call: ${request.customerPhone || '+91 98765 43210'}`}
                         className="min-h-[40px] bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white py-2 px-3.5 rounded-xl font-bold text-xs transition shadow-xs flex items-center justify-center space-x-1.5 cursor-pointer flex-1 sm:flex-initial"
                       >
                         <Phone className="h-4 w-4" />
@@ -730,7 +725,7 @@ export default function ProviderDashboard() {
                             )}
                             target="_blank"
                             rel="noopener noreferrer"
-                            title="Chat with Customer on WhatsApp"
+                            title="Chat on WhatsApp"
                             className="min-h-[40px] bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] text-white py-2 px-3.5 rounded-xl font-bold text-xs transition shadow-xs flex items-center justify-center space-x-1.5 cursor-pointer flex-1 sm:flex-initial"
                           >
                             <WhatsAppIcon className="h-4 w-4" />
@@ -744,11 +739,11 @@ export default function ProviderDashboard() {
                         className="min-h-[40px] bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white py-2 px-3.5 rounded-xl font-bold text-xs transition shadow-xs flex items-center justify-center space-x-1.5 cursor-pointer flex-1 sm:flex-initial"
                       >
                         <MessageSquare className="h-4 w-4" />
-                        <span>Message</span>
+                        <span>Chat</span>
                       </button>
                     </div>
 
-                    {/* LARGE ACCEPT AND CANCEL BUTTONS */}
+                    {/* LARGE ACCEPT AND DECLINE BUTTONS */}
                     <div className="flex flex-wrap gap-2 pt-1">
                       <button
                         onClick={() => handleAcceptRequest(request)}
@@ -763,7 +758,7 @@ export default function ProviderDashboard() {
                         className="min-h-[40px] flex-1 bg-white hover:bg-rose-50 hover:text-rose-600 border border-slate-300 hover:border-rose-300 text-slate-700 active:scale-[0.98] py-2.5 px-4 rounded-xl font-bold text-sm transition flex items-center justify-center space-x-1.5 cursor-pointer"
                       >
                         <XCircle className="h-4 w-4" />
-                        <span>Cancel Booking</span>
+                        <span>Decline</span>
                       </button>
                     </div>
                   </div>
@@ -846,11 +841,6 @@ export default function ProviderDashboard() {
                               <span className="font-semibold text-slate-800 text-xs sm:text-sm leading-snug block break-words">
                                 {job.customerAddress || job.address}
                               </span>
-                              {(job.customerLat || job.customerLng) && (
-                                <span className="text-[10px] text-slate-500 font-mono block mt-1">
-                                  📍 Coordinates: [{Number(job.customerLat).toFixed(4)}, {Number(job.customerLng).toFixed(4)}]
-                                </span>
-                              )}
                             </div>
                           </div>
                         )}
@@ -898,7 +888,7 @@ export default function ProviderDashboard() {
                             ) : (
                               <>
                                 <CheckCircle2 className="h-3.5 w-3.5" />
-                                <span>Verify & Start Job</span>
+                                <span>Verify OTP</span>
                               </>
                             )}
                           </button>
@@ -917,7 +907,7 @@ export default function ProviderDashboard() {
                       <div className="flex flex-wrap items-center gap-2">
                         <a
                           href={`tel:${job.customerPhone || '+91 98765 43210'}`}
-                          title={`Call Customer: ${job.customerPhone || '+91 98765 43210'}`}
+                          title={`Call: ${job.customerPhone || '+91 98765 43210'}`}
                           className="min-h-[40px] bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-3.5 rounded-xl font-bold text-xs transition flex items-center justify-center space-x-1 cursor-pointer flex-1 sm:flex-initial"
                         >
                           <Phone className="h-4 w-4" />
@@ -936,7 +926,7 @@ export default function ProviderDashboard() {
                             )}
                             target="_blank"
                             rel="noopener noreferrer"
-                            title="Chat with Customer on WhatsApp"
+                            title="Chat on WhatsApp"
                             className="min-h-[40px] bg-emerald-500 hover:bg-emerald-600 text-white py-2 px-3.5 rounded-xl font-bold text-xs transition flex items-center justify-center space-x-1 cursor-pointer flex-1 sm:flex-initial"
                           >
                             <WhatsAppIcon className="h-4 w-4" />
@@ -950,7 +940,7 @@ export default function ProviderDashboard() {
                           className="min-h-[40px] bg-blue-600 hover:bg-blue-700 text-white py-2 px-3.5 rounded-xl font-bold text-xs transition flex items-center justify-center space-x-1 cursor-pointer flex-1 sm:flex-initial"
                         >
                           <MessageSquare className="h-4 w-4" />
-                          <span>Message</span>
+                          <span>Chat</span>
                         </button>
                       </div>
 
@@ -961,7 +951,7 @@ export default function ProviderDashboard() {
                           className="w-full min-h-[44px] bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center space-x-2 cursor-pointer shadow-xs"
                         >
                           <CheckCircle2 className="h-4 w-4 text-white" />
-                          <span>Mark as Completed</span>
+                          <span>Complete Job</span>
                         </button>
                       )}
                     </div>
@@ -998,7 +988,7 @@ export default function ProviderDashboard() {
 
       {/* FOOTER */}
       <footer className="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-400">
-        LocalServe Provider Portal • Real-Time Firestore onSnapshot Sync & GPS Coordinates
+        LocalServe Provider Portal • Professional Service Management
       </footer>
 
     </div>

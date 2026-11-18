@@ -43,7 +43,7 @@ export default function BookingChatModal({ booking, currentUser, onClose }) {
 
   const otherPartySubtitle = isCurrentUserCustomer
     ? (booking?.serviceCategory || 'Specialist')
-    : 'Customer Client';
+    : 'Customer';
 
   // 1. FIRESTORE onSnapshot: Listen to subcollection bookings/{bookingId}/messages ordered by createdAt asc
   useEffect(() => {
@@ -194,7 +194,7 @@ export default function BookingChatModal({ booking, currentUser, onClose }) {
           {loading ? (
             <div className="h-full flex flex-col items-center justify-center text-center space-y-2.5">
               <Loader2 className="h-7 w-7 text-blue-600 animate-spin" />
-              <p className="text-xs font-semibold text-slate-500">Connecting to real-time chat...</p>
+              <p className="text-xs font-semibold text-slate-500">Connecting...</p>
             </div>
           ) : messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-3">

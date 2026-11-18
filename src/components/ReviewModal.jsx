@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Star, X, Loader2, CheckCircle2, MessageSquare, Sparkles } from 'lucide-react';
+import { Star, X, Loader2, Sparkles } from 'lucide-react';
 
 const RATING_LABELS = {
   1: '1 Star - Poor Experience',
   2: '2 Stars - Below Expectations',
   3: '3 Stars - Satisfactory Service',
   4: '4 Stars - Great Work & Friendly',
-  5: '5 Stars - Outstanding & Highly Recommended! 🌟'
+  5: '5 Stars - Outstanding & Highly Recommended'
 };
 
 export default function ReviewModal({ booking, onSubmitReview, onClose, isSubmitting = false }) {
@@ -122,7 +122,7 @@ export default function ReviewModal({ booking, onSubmitReview, onClose, isSubmit
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Submitting Review...</span>
+                  <span>Submitting...</span>
                 </>
               ) : (
                 <>

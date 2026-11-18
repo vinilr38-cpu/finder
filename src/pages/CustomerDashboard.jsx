@@ -259,7 +259,7 @@ export default function CustomerDashboard() {
         const lng = Number(position.coords.longitude.toFixed(6));
 
         // Attempt reverse geocoding via Nominatim
-        let resolvedAddress = `GPS Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+        let resolvedAddress = 'Current Location';
         try {
           const res = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
@@ -336,7 +336,7 @@ export default function CustomerDashboard() {
     const numLng = Number(Number(coords.lng).toFixed(6));
 
     // Reverse geocode to find address for the new pin position
-    let resolvedAddress = coords.address || `Pin Location (${numLat.toFixed(4)}, ${numLng.toFixed(4)})`;
+    let resolvedAddress = coords.address || 'Selected Location';
     try {
       const res = await fetch(
         `https://nominatim.openstreetmap.org/reverse?format=json&lat=${numLat}&lon=${numLng}`,
@@ -741,7 +741,7 @@ export default function CustomerDashboard() {
         return (
           <span className="bg-amber-100 text-amber-800 border border-amber-200 px-3 py-1 rounded-full text-xs font-bold flex items-center animate-pulse">
             <Clock className="h-3.5 w-3.5 mr-1.5 text-amber-600" />
-            Pending Provider Approval
+            Pending Confirmation
           </span>
         );
     }
@@ -757,11 +757,11 @@ export default function CustomerDashboard() {
             <Wrench className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="font-extrabold text-base sm:text-xl tracking-tight text-blue-900 leading-none">
-              Welcome, {user?.name || 'Customer'}
+            <h1 className="font-extrabold text-base sm:text-xl tracking-tight text-slate-900 leading-none">
+              {user?.name ? `Hi, ${user.name}` : 'LocalServe'}
             </h1>
-            <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium leading-none mt-0.5">
-              Live Verified Specialists • Real-Time Firestore Sync
+            <p className="text-[10px] sm:text-[11px] text-slate-500 font-medium leading-none mt-0.5">
+              Verified local specialists
             </p>
           </div>
         </div>
@@ -770,7 +770,7 @@ export default function CustomerDashboard() {
           {/* Real-time Status Badge */}
           <div className="hidden sm:flex items-center space-x-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-1.5 rounded-full text-xs font-semibold">
             <Radio className="h-3.5 w-3.5 text-emerald-600 animate-pulse" />
-            <span>{providers.length} Provider{providers.length === 1 ? '' : 's'} Online</span>
+            <span>{providers.length} available</span>
           </div>
 
           {/* Reset Map View Button */}
@@ -781,7 +781,7 @@ export default function CustomerDashboard() {
             className="hidden md:flex items-center space-x-1 text-slate-600 hover:text-blue-600 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-200 hover:border-blue-300 transition cursor-pointer min-h-[36px]"
           >
             <MapPin className="h-3.5 w-3.5" />
-            <span>My Spot</span>
+            <span>My Location</span>
           </button>
 
           {/* Logout Button */}
@@ -807,18 +807,18 @@ export default function CustomerDashboard() {
             <div className="min-w-0 flex-1">
               <div className="flex items-center space-x-2">
                 <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  Your Service Location:
+                  Service Location:
                 </span>
                 {isSavingLoc && (
                   <span className="text-[10px] text-blue-600 font-bold flex items-center bg-blue-50 px-2 py-0.5 rounded-full">
                     <Loader2 className="h-2.5 w-2.5 animate-spin mr-1" />
-                    Saving to Firestore...
+                    Saving...
                   </span>
                 )}
                 {locationSavedAlert && (
                   <span className="text-[10px] text-emerald-700 font-bold flex items-center bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full animate-in fade-in">
                     <CheckCircle2 className="h-2.5 w-2.5 mr-1 text-emerald-600" />
-                    Saved to Firestore!
+                    Location saved
                   </span>
                 )}
               </div>
@@ -833,12 +833,12 @@ export default function CustomerDashboard() {
             </div>
           </div>
 
-          {/* Nominatim Search Input & Detect My Location Button */}
+          {/* Search Input & Use Current Location Button */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
             <div className="w-full sm:w-72 md:w-80">
               <AddressSearchBar
                 onSelectLocation={handleAddressSearchSelect}
-                placeholder="Search your area, e.g. Indiranagar, Bengaluru"
+                placeholder="Search area, landmark or street"
                 initialValue=""
               />
             </div>
@@ -852,12 +852,12 @@ export default function CustomerDashboard() {
               {isDetectingGPS ? (
                 <>
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  <span>Detecting...</span>
+                  <span>Locating...</span>
                 </>
               ) : (
                 <>
                   <Crosshair className="h-3.5 w-3.5" />
-                  <span>Detect My Location</span>
+                  <span>Use current location</span>
                 </>
               )}
             </button>
@@ -996,9 +996,9 @@ export default function CustomerDashboard() {
                       </span>
                     )}
                   </span>
-                  <span className="flex items-center text-emerald-600 font-semibold">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>
-                    Live in Firestore
+                  <span className="flex items-center text-slate-500 font-medium">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 mr-1.5"></span>
+                    Verified professionals
                   </span>
                 </div>
               </div>
@@ -1006,59 +1006,21 @@ export default function CustomerDashboard() {
               {/* Scrollable Provider Cards Container */}
               <div className="flex-1 overflow-y-auto p-4 space-y-3.5">
                 {loadingProviders ? (
-                  <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center flex flex-col items-center justify-center space-y-3 shadow-xs">
-                    <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
-                    <p className="text-sm font-semibold text-slate-700">Connecting to live providers...</p>
+                  <div className="bg-white rounded-xl border border-slate-200 p-12 text-center flex flex-col items-center justify-center space-y-3 shadow-xs">
+                    <Loader2 className="h-6 w-6 text-blue-600 animate-spin" />
+                    <p className="text-xs font-medium text-slate-500">Finding nearby specialists...</p>
                   </div>
                 ) : providers.length === 0 ? (
-                  /* Clean empty state: No providers online */
-                  <div className="bg-white rounded-3xl border border-dashed border-slate-300 p-8 text-center space-y-4 shadow-xs">
-                    <div className="w-16 h-16 rounded-3xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto border-2 border-blue-100">
-                      <Radio className="h-8 w-8 animate-pulse" />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <h3 className="font-extrabold text-slate-900 text-lg">
-                        No Service Providers Currently Online
-                      </h3>
-                      <p className="text-slate-500 text-xs sm:text-sm max-w-sm mx-auto leading-relaxed">
-                        We're actively listening for providers. When a technician logs in and sets their status to <strong>Online</strong>, they will instantly appear here on the map.
-                      </p>
-                    </div>
-
-                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-left text-xs text-slate-600 space-y-1.5 max-w-sm mx-auto">
-                      <p className="font-bold text-slate-800">Quick Testing Tip:</p>
-                      <p className="text-slate-500">
-                        Open an incognito window, sign up as a <strong>Service Provider</strong>, set your toggle to <strong>Online</strong>, and watch your card appear here!
-                      </p>
-                    </div>
+                  <div className="bg-white rounded-xl border border-slate-200 p-8 text-center space-y-2 shadow-xs">
+                    <Radio className="h-6 w-6 text-slate-400 mx-auto" />
+                    <h3 className="font-bold text-slate-900 text-sm">No specialists available right now</h3>
+                    <p className="text-xs text-slate-500">Please check back shortly or choose another category.</p>
                   </div>
                 ) : sortedProviders.length === 0 ? (
-                  /* Filter mismatch */
-                  <div className="bg-white rounded-3xl border border-dashed border-slate-300 p-8 text-center space-y-3 shadow-xs">
-                    <AlertCircle className="h-8 w-8 text-slate-400 mx-auto" />
-                    <p className="font-bold text-slate-800 text-base">No online providers matching your criteria</p>
-                    <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                      Try increasing the distance radius or selecting a different service category.
-                    </p>
-                    <div className="flex justify-center space-x-2 pt-1">
-                      {distanceFilter !== 'all' && (
-                        <button
-                          onClick={() => setDistanceFilter('all')}
-                          className="text-xs font-bold text-blue-600 hover:underline cursor-pointer"
-                        >
-                          Reset distance filter
-                        </button>
-                      )}
-                      {selectedCategory !== 'All' && (
-                        <button
-                          onClick={() => setSelectedCategory('All')}
-                          className="text-xs font-bold text-blue-600 hover:underline cursor-pointer"
-                        >
-                          View all categories
-                        </button>
-                      )}
-                    </div>
+                  <div className="bg-white rounded-xl border border-slate-200 p-8 text-center space-y-2 shadow-xs">
+                    <AlertCircle className="h-6 w-6 text-slate-400 mx-auto" />
+                    <h3 className="font-bold text-slate-900 text-sm">No matching specialists found</h3>
+                    <p className="text-xs text-slate-500">Try adjusting your category or distance filter.</p>
                   </div>
                 ) : (
                   /* Real Provider Cards */
@@ -1164,13 +1126,13 @@ export default function CustomerDashboard() {
                               }}
                               className="min-h-[40px] text-xs font-semibold text-slate-700 hover:text-blue-600 px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 transition cursor-pointer flex items-center justify-center"
                             >
-                              Show on Map
+                              Map
                             </button>
                             <button
                               onClick={(e) => handleBookNowClick(provider, e)}
                               className="min-h-[40px] bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-xs flex items-center justify-center space-x-1 cursor-pointer"
                             >
-                              <span>Book Now</span>
+                              <span>Book</span>
                               <ChevronRight className="h-3.5 w-3.5" />
                             </button>
                           </div>
@@ -1188,8 +1150,8 @@ export default function CustomerDashboard() {
             <div className="flex-1 flex flex-col overflow-hidden">
               <div className="p-4 bg-white border-b border-slate-200 flex justify-between items-center shrink-0">
                 <div>
-                  <h2 className="font-bold text-slate-900 text-base">My Service Bookings</h2>
-                  <p className="text-xs text-slate-400 mt-0.5">Live status updates synced with Firestore</p>
+                  <h2 className="font-bold text-slate-900 text-base">Bookings</h2>
+                  <p className="text-xs text-slate-400 mt-0.5">Track appointment status and message specialists</p>
                 </div>
                 <span className="text-xs font-semibold bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full">
                   {myBookings.length} Total
@@ -1205,15 +1167,15 @@ export default function CustomerDashboard() {
                 ) : myBookings.length === 0 ? (
                   <div className="bg-white rounded-3xl border border-dashed border-slate-300 p-10 text-center space-y-3">
                     <Bookmark className="h-8 w-8 text-slate-300 mx-auto" />
-                    <h3 className="font-bold text-slate-700 text-base">No Bookings Yet</h3>
+                    <h3 className="font-bold text-slate-700 text-base">No bookings yet</h3>
                     <p className="text-xs text-slate-400 max-w-xs mx-auto">
-                      You haven't requested any services yet. Pick an online specialist from the map or directory to book an appointment!
+                      Choose a specialist to schedule your first service.
                     </p>
                     <button
                       onClick={() => setActiveLeftTab('providers')}
                       className="mt-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-4 rounded-xl transition cursor-pointer"
                     >
-                      Browse Available Specialists
+                      Browse Specialists
                     </button>
                   </div>
                 ) : (
@@ -1232,7 +1194,7 @@ export default function CustomerDashboard() {
                             {booking.providerName}
                           </h4>
                           <span className="text-[11px] text-slate-400 font-mono block mt-0.5">
-                            Booking ID: {booking.id.slice(0, 8)}...
+                            ID: #{booking.id.slice(0, 6)}
                           </span>
                         </div>
 
@@ -1321,7 +1283,7 @@ export default function CustomerDashboard() {
                               className="min-h-[40px] bg-white hover:bg-rose-50 text-rose-600 hover:text-rose-700 border border-rose-200 hover:border-rose-300 px-3.5 py-2 rounded-xl font-bold transition shadow-2xs flex items-center space-x-1.5 cursor-pointer text-xs"
                             >
                               <XCircle className="h-4 w-4" />
-                              <span>Cancel Booking</span>
+                              <span>Cancel</span>
                             </button>
                           )}
 
@@ -1339,7 +1301,7 @@ export default function CustomerDashboard() {
                                 className="min-h-[40px] bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-white px-3.5 py-2 rounded-xl font-bold text-xs transition shadow-xs flex items-center space-x-1.5 cursor-pointer animate-pulse"
                               >
                                 <Star className="h-4 w-4 fill-current" />
-                                <span>Rate & Review</span>
+                                <span>Review</span>
                               </button>
                             )
                           )}
@@ -1347,7 +1309,7 @@ export default function CustomerDashboard() {
                           {/* Call Button (<a href={`tel:${phoneNumber}`}>) */}
                           <a
                             href={`tel:${booking.providerPhone || '+91 98765 12345'}`}
-                            title={`Call Provider: ${booking.providerPhone || '+91 98765 12345'}`}
+                            title={`Call: ${booking.providerPhone || '+91 98765 12345'}`}
                             className="min-h-[40px] bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white px-3.5 py-2 rounded-xl font-bold transition shadow-xs flex items-center space-x-1.5 cursor-pointer text-xs"
                           >
                             <Phone className="h-4 w-4" />
@@ -1371,7 +1333,7 @@ export default function CustomerDashboard() {
                               )}
                               target="_blank"
                               rel="noopener noreferrer"
-                              title="Chat with Provider on WhatsApp"
+                              title="Chat on WhatsApp"
                               className="min-h-[40px] bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] text-white px-3.5 py-2 rounded-xl font-bold transition shadow-xs flex items-center space-x-1.5 cursor-pointer text-xs"
                             >
                               <WhatsAppIcon className="h-4 w-4" />
@@ -1386,7 +1348,7 @@ export default function CustomerDashboard() {
                             className="min-h-[40px] bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white px-3.5 py-2 rounded-xl font-bold transition shadow-xs flex items-center space-x-1.5 cursor-pointer text-xs"
                           >
                             <MessageSquare className="h-4 w-4" />
-                            <span>Message</span>
+                            <span>Chat</span>
                           </button>
                         </div>
                       </div>
@@ -1448,18 +1410,15 @@ export default function CustomerDashboard() {
               <Popup>
                 <div className="p-1 text-slate-800">
                   <div className="flex items-center space-x-1.5 text-blue-700 font-bold text-xs uppercase tracking-wider mb-1">
-                    <span>📍 Your Location (Customer)</span>
+                    <span>📍 Your Location</span>
                   </div>
                   {customerCoords.address && (
                     <p className="text-xs text-slate-700 font-medium leading-tight mb-1">
                       {customerCoords.address}
                     </p>
                   )}
-                  <p className="text-[10px] text-slate-500 font-mono">
-                    Lat: {customerCoords.lat.toFixed(5)}, Lng: {customerCoords.lng.toFixed(5)}
-                  </p>
                   <p className="text-[11px] text-emerald-600 mt-1 font-semibold">
-                    Drag pin or click map to move your spot
+                    Drag pin or click map to move
                   </p>
                 </div>
               </Popup>
@@ -1554,20 +1513,17 @@ export default function CustomerDashboard() {
           {/* Floating Map Legend Overlay */}
           <div className="absolute top-3 right-3 sm:top-4 sm:right-4 bg-white/95 backdrop-blur-xs p-3 rounded-2xl shadow-lg border border-slate-200 z-10 text-xs space-y-1.5 pointer-events-auto max-w-[200px] hidden sm:block">
             <span className="font-bold text-slate-900 block text-[11px] uppercase tracking-wider">
-              Live Map Legend
+              Map Legend
             </span>
             <div className="flex items-center space-x-2 text-slate-700">
               <span className="h-3 w-3 rounded-full bg-blue-600 ring-2 ring-blue-300"></span>
-              <span><strong>You</strong> (Customer Pin)</span>
+              <span><strong>You</strong> (Your Location)</span>
             </div>
             <div className="flex items-center space-x-2 text-slate-700">
               <span className="h-3 w-3 rounded-full bg-emerald-600 ring-2 ring-emerald-300"></span>
               <span>
-                <strong>{providers.length}</strong> Live Provider{providers.length === 1 ? '' : 's'}
+                <strong>{providers.length}</strong> Specialist{providers.length === 1 ? '' : 's'}
               </span>
-            </div>
-            <div className="text-[10px] text-slate-400 pt-1 border-t border-slate-100 leading-tight">
-              Synced directly with Firestore users & bookings.
             </div>
           </div>
         </div>
@@ -1582,7 +1538,7 @@ export default function CustomerDashboard() {
             <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white flex justify-between items-start">
               <div>
                 <span className="text-xs font-semibold text-blue-200 uppercase tracking-wider block">
-                  Book Live Specialist
+                  Book Specialist
                 </span>
                 <h2 className="text-xl font-bold mt-0.5">
                   Book {activeBookingProvider.name}
@@ -1709,10 +1665,10 @@ export default function CustomerDashboard() {
                 {isSubmittingBooking ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Confirming Booking & Generating OTP...</span>
+                    <span>Confirming...</span>
                   </>
                 ) : (
-                  <span>Confirm & Send Booking Request</span>
+                  <span>Confirm Booking</span>
                 )}
               </button>
             </form>
@@ -1725,7 +1681,7 @@ export default function CustomerDashboard() {
         <div className="fixed bottom-6 right-6 bg-slate-900 text-white p-5 rounded-2xl shadow-2xl flex items-start space-x-3.5 border border-slate-700 z-50 animate-in slide-in-from-bottom-3 max-w-sm">
           <CheckCircle2 className="h-6 w-6 text-emerald-400 shrink-0 mt-0.5" />
           <div className="flex-1">
-            <h4 className="font-bold text-sm">Booking Sent to Firestore!</h4>
+            <h4 className="font-bold text-sm">Booking Confirmed!</h4>
             <p className="text-xs text-slate-300 mt-1">
               Dispatched to <strong>{bookingSuccess.provider.name}</strong> for <strong>{bookingSuccess.date} ({bookingSuccess.timeSlot})</strong>.
             </p>
@@ -1771,8 +1727,8 @@ export default function CustomerDashboard() {
         <div className="fixed bottom-6 right-6 bg-slate-900 text-white p-4 rounded-2xl shadow-2xl flex items-center space-x-3 border border-slate-700 z-50 animate-in slide-in-from-bottom-2 max-w-sm">
           <Star className="h-5 w-5 fill-amber-400 text-amber-400 shrink-0" />
           <div className="text-xs">
-            <h5 className="font-bold text-sm text-white">Review Submitted!</h5>
-            <p className="text-slate-300 mt-0.5">Thank you for rating your service provider. Provider rating updated in real-time.</p>
+            <h5 className="font-bold text-sm text-white">Review Submitted</h5>
+            <p className="text-slate-300 mt-0.5">Thank you for sharing your feedback.</p>
           </div>
         </div>
       )}

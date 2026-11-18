@@ -84,8 +84,8 @@ export default function DraggableLocationPicker({
   onConfirm,
   isSaving = false,
   showConfirmButton = false,
-  confirmButtonText = 'Confirm & Save Location',
-  helperText = 'Location not exact? Click or drag the pin to your exact spot.',
+  confirmButtonText = 'Save Location',
+  helperText = 'Click or drag the pin to adjust location.',
   role = 'provider',
   height = '220px',
   onDetectCurrentLocation,
@@ -173,12 +173,12 @@ export default function DraggableLocationPicker({
             className="text-[11px] font-bold text-amber-800 hover:text-amber-950 underline flex items-center space-x-1 cursor-pointer shrink-0 ml-2"
           >
             <Crosshair className={`h-3 w-3 ${isDetecting ? 'animate-spin' : ''}`} />
-            <span>{isDetecting ? 'Locating...' : 'GPS Detect'}</span>
+            <span>{isDetecting ? 'Locating...' : 'Use current location'}</span>
           </button>
         )}
       </div>
 
-      {/* 3. INTERACTIVE REACT-LEAFLET MAP WITH OSM ATTRIBUTION */}
+      {/* 3. INTERACTIVE MAP */}
       <div 
         className="w-full rounded-2xl overflow-hidden border border-slate-300 relative shadow-inner z-0"
         style={{ height }}
@@ -189,7 +189,7 @@ export default function DraggableLocationPicker({
           scrollWheelZoom={true}
           style={{ height: '100%', width: '100%' }}
         >
-          {/* OpenStreetMap Attribution remains visible */}
+          {/* OpenStreetMap Attribution */}
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -210,15 +210,12 @@ export default function DraggableLocationPicker({
           >
             <Popup>
               <div className="p-1 text-center font-sans text-xs">
-                <span className="font-bold text-slate-800 block">Your Chosen Spot</span>
+                <span className="font-bold text-slate-800 block">Selected Location</span>
                 {currentAddress && (
                   <p className="text-[11px] text-slate-600 leading-tight mb-1 line-clamp-2">
                     {currentAddress}
                   </p>
                 )}
-                <span className="text-[10px] text-slate-500 font-mono block">
-                  {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
-                </span>
                 <span className="text-[10px] text-emerald-600 block mt-0.5 font-semibold">
                   Drag pin or click map to move
                 </span>
@@ -226,11 +223,6 @@ export default function DraggableLocationPicker({
             </Popup>
           </Marker>
         </MapContainer>
-
-        {/* Small Coordinates Overlay Pill */}
-        <div className="absolute bottom-2 left-2 z-[400] bg-white/90 backdrop-blur-xs px-2.5 py-1 rounded-lg border border-slate-200 text-[10px] font-mono font-medium text-slate-700 shadow-xs pointer-events-none">
-          Lat: {coords.lat.toFixed(5)}, Lng: {coords.lng.toFixed(5)}
-        </div>
       </div>
 
       {/* Selected Address Display Card */}
@@ -238,7 +230,7 @@ export default function DraggableLocationPicker({
         <div className="bg-slate-50 border border-slate-200 p-2.5 rounded-xl flex items-start space-x-2 text-xs text-slate-700">
           <MapPin className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block">Selected Address:</span>
+            <span className="text-[10px] uppercase font-bold text-slate-400 block">Location:</span>
             <span className="font-medium text-slate-800 line-clamp-2 leading-snug">{currentAddress}</span>
           </div>
         </div>
@@ -250,12 +242,12 @@ export default function DraggableLocationPicker({
           type="button"
           onClick={() => onConfirm({ ...coords, address: currentAddress })}
           disabled={isSaving}
-          className="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] disabled:opacity-70 text-white text-xs font-bold py-2.5 px-4 rounded-xl transition shadow-xs flex items-center justify-center space-x-1.5 cursor-pointer"
+          className="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.99] disabled:opacity-70 text-white text-xs font-bold py-2.5 px-4 rounded-xl transition shadow-xs flex items-center justify-center space-x-1.5 cursor-pointer"
         >
           {isSaving ? (
             <>
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              <span>Saving to Firestore...</span>
+              <span>Saving...</span>
             </>
           ) : (
             <>

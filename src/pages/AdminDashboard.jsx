@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   ShieldCheck, Users, Wrench, CalendarCheck, CheckCircle2,
   XCircle, Clock, Search, LogOut, Loader2, Sparkles,
-  Phone, Mail, Check, X, Filter, Lock, ArrowLeft, RefreshCw
+  Phone, Mail, Check, X, Filter, Lock, ArrowLeft
 } from 'lucide-react';
 import { db } from '../firebase';
 import {
@@ -49,7 +49,7 @@ export default function AdminDashboard() {
       setIsAuthenticated(true);
       setPasscodeError('');
     } else {
-      setPasscodeError("Invalid passcode. Enter 'admin123' to unlock demo access.");
+      setPasscodeError("Invalid passcode. Enter 'admin123' to sign in.");
     }
   };
 
@@ -232,16 +232,16 @@ export default function AdminDashboard() {
               <ShieldCheck className="h-7 w-7" />
             </div>
             <h2 className="text-2xl font-black text-white tracking-tight">
-              Admin Portal Demo Gate
+              Admin Portal
             </h2>
             <p className="text-xs text-slate-400 max-w-xs mx-auto">
-              Protected administrator access for platform verification and live dispatch supervision.
+              Protected administrator access for platform operations.
             </p>
           </div>
 
           <form onSubmit={handleUnlock} className="space-y-4">
             <div className="bg-slate-900/60 p-3.5 rounded-2xl border border-slate-700/80 text-xs space-y-1">
-              <span className="text-slate-400 font-semibold block">Demo Passcode:</span>
+              <span className="text-slate-400 font-semibold block">Passcode:</span>
               <code className="text-blue-400 font-mono font-bold text-sm bg-blue-950/60 px-2 py-0.5 rounded border border-blue-800/60 inline-block">
                 admin123
               </code>
@@ -276,7 +276,7 @@ export default function AdminDashboard() {
               type="submit"
               className="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-bold py-3 px-4 rounded-xl transition shadow-lg shadow-blue-600/30 text-sm cursor-pointer"
             >
-              Unlock Admin Portal
+              Sign In
             </button>
 
             <button
@@ -306,14 +306,14 @@ export default function AdminDashboard() {
             <div>
               <div className="flex items-center space-x-2">
                 <h1 className="font-extrabold text-lg sm:text-xl tracking-tight text-white leading-none">
-                  LocalServe Admin Control Center
+                  LocalServe Admin
                 </h1>
                 <span className="hidden sm:inline-flex bg-blue-500/20 text-blue-300 border border-blue-500/40 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                  Role: Platform Administrator
+                  Administrator
                 </span>
               </div>
               <p className="text-[11px] text-slate-400 mt-0.5 leading-none">
-                Live Platform Telemetry • Real-Time Firestore Sync
+                Platform Operations
               </p>
             </div>
           </div>
@@ -321,7 +321,7 @@ export default function AdminDashboard() {
           <div className="flex items-center space-x-3">
             <div className="hidden md:flex items-center space-x-2 bg-slate-800 text-emerald-400 border border-slate-700 px-3 py-1.5 rounded-full text-xs font-semibold">
               <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span>Live Firestore Connected</span>
+              <span>System Active</span>
             </div>
 
             <button
@@ -451,7 +451,7 @@ export default function AdminDashboard() {
                 }`}
               >
                 <Wrench className="h-4 w-4" />
-                <span>Providers Management</span>
+                <span>Providers</span>
                 <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
                   activeTab === 'providers' ? 'bg-blue-700 text-blue-100' : 'bg-slate-200 text-slate-700'
                 }`}>
@@ -529,7 +529,7 @@ export default function AdminDashboard() {
                       <tr>
                         <td colSpan={6} className="py-12 text-center text-slate-500">
                           <Loader2 className="h-6 w-6 animate-spin text-blue-600 mx-auto mb-2" />
-                          <span>Loading providers from Firestore...</span>
+                          <span>Loading providers...</span>
                         </td>
                       </tr>
                     ) : filteredProviders.length === 0 ? (
@@ -816,7 +816,7 @@ export default function AdminDashboard() {
 
       {/* 4. FOOTER */}
       <footer className="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-400">
-        LocalServe Admin Telemetry • Real-Time Firestore onSnapshot Sync & Verification Manager
+        LocalServe Admin • Platform Operations
       </footer>
 
     </div>
