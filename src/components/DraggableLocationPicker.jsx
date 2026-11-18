@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { MapPin, Check, Crosshair, Loader2 } from 'lucide-react';
+import AddressSearchBar from './AddressSearchBar';
 
 // Custom Pin Icon for Customer (Blue)
 const customerPinIcon = L.divIcon({
@@ -50,14 +51,17 @@ function MapClickWatcher({ onLocationSelect }) {
   return null;
 }
 
-// Map Auto Fly-To Center
-function MapFlyToCenter({ coords }) {
+// Smoothly pan/zoom to coordinates using useMap().flyTo([lat, lon], 15)
+function MapFlyToSmooth({ target }) {
   const map = useMap();
   useEffect(() => {
-    if (coords?.lat && coords?.lng) {
-      map.flyTo([coords.lat, coords.lng], map.getZoom() || 14, { duration: 0.8 });
+    if (target?.lat && target?.lng) {
+      map.flyTo([target.lat, target.lng], 15, {
+        duration: 1.4,
+        easeLinearity: 0.25
+      });
     }
-  }, [coords?.lat, coords?.lng, map]);
+  }, [target?.lat, target?.lng, map]);
   return null;
 }
 
@@ -75,6 +79,7 @@ function MapInvalidateSize() {
 
 export default function DraggableLocationPicker({
   coords = { lat: 17.385044, lng: 78.486671 },
+  address = '',
   onChange,
   onConfirm,
   isSaving = false,
@@ -84,8 +89,19 @@ export default function DraggableLocationPicker({
   role = 'provider',
   height = '220px',
   onDetectCurrentLocation,
-  isDetecting = false
+  isDetecting = false,
+  showSearchBar = true,
+  searchPlaceholder = 'Search your area, e.g. Indiranagar, Bengaluru'
 }) {
+  const [flyTarget, setFlyTarget] = useState(null);
+  const [currentAddress, setCurrentAddress] = useState(address);
+
+  useEffect(() => {
+    if (address) {
+      setCurrentAddress(address);
+    }
+  }, [address]);
+
   const markerIcon = role === 'customer' ? customerPinIcon : providerPinIcon;
 
   // Handle DragEnd on Marker
@@ -94,7 +110,8 @@ export default function DraggableLocationPicker({
       const latlng = e.target.getLatLng();
       const updated = {
         lat: Number(latlng.lat.toFixed(6)),
-        lng: Number(latlng.lng.toFixed(6))
+        lng: Number(latlng.lng.toFixed(6)),
+        address: currentAddress
       };
       if (onChange) {
         onChange(updated);
@@ -104,14 +121,44 @@ export default function DraggableLocationPicker({
 
   // Handle Map Click
   const handleMapClick = (latlng) => {
+    const updated = {
+      lat: latlng.lat,
+      lng: latlng.lng,
+      address: currentAddress
+    };
     if (onChange) {
-      onChange(latlng);
+      onChange(updated);
+    }
+  };
+
+  // Handle Nominatim Address Selection
+  const handleAddressSelect = ({ lat, lng, address: selectedAddress }) => {
+    const updated = {
+      lat,
+      lng,
+      address: selectedAddress
+    };
+    setCurrentAddress(selectedAddress);
+    setFlyTarget({ lat, lng });
+    if (onChange) {
+      onChange(updated);
     }
   };
 
   return (
-    <div className="w-full space-y-2">
-      {/* 1. REQUIRED HELPER LABEL */}
+    <div className="w-full space-y-2.5">
+      {/* 1. NOMINATIM FREE ADDRESS SEARCH BAR */}
+      {showSearchBar && (
+        <div>
+          <AddressSearchBar
+            onSelectLocation={handleAddressSelect}
+            placeholder={searchPlaceholder}
+            initialValue={currentAddress}
+          />
+        </div>
+      )}
+
+      {/* 2. REQUIRED HELPER LABEL */}
       <div className="bg-amber-50 border border-amber-200/80 rounded-xl px-3 py-2 flex items-center justify-between text-amber-900 shadow-2xs">
         <div className="flex items-center space-x-2 text-xs font-semibold">
           <MapPin className="h-4 w-4 text-amber-600 shrink-0" />
@@ -131,7 +178,7 @@ export default function DraggableLocationPicker({
         )}
       </div>
 
-      {/* 2. INTERACTIVE REACT-LEAFLET MAP */}
+      {/* 3. INTERACTIVE REACT-LEAFLET MAP WITH OSM ATTRIBUTION */}
       <div 
         className="w-full rounded-2xl overflow-hidden border border-slate-300 relative shadow-inner z-0"
         style={{ height }}
@@ -142,13 +189,14 @@ export default function DraggableLocationPicker({
           scrollWheelZoom={true}
           style={{ height: '100%', width: '100%' }}
         >
+          {/* OpenStreetMap Attribution remains visible */}
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
 
           <MapInvalidateSize />
-          <MapFlyToCenter coords={coords} />
+          <MapFlyToSmooth target={flyTarget || coords} />
           <MapClickWatcher onLocationSelect={handleMapClick} />
 
           {/* DRAGGABLE USER MARKER */}
@@ -163,11 +211,16 @@ export default function DraggableLocationPicker({
             <Popup>
               <div className="p-1 text-center font-sans text-xs">
                 <span className="font-bold text-slate-800 block">Your Chosen Spot</span>
-                <span className="text-[10px] text-slate-500 font-mono">
+                {currentAddress && (
+                  <p className="text-[11px] text-slate-600 leading-tight mb-1 line-clamp-2">
+                    {currentAddress}
+                  </p>
+                )}
+                <span className="text-[10px] text-slate-500 font-mono block">
                   {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
                 </span>
-                <span className="text-[10px] text-emerald-600 block mt-0.5">
-                  Drag or click map to move
+                <span className="text-[10px] text-emerald-600 block mt-0.5 font-semibold">
+                  Drag pin or click map to move
                 </span>
               </div>
             </Popup>
@@ -180,11 +233,22 @@ export default function DraggableLocationPicker({
         </div>
       </div>
 
-      {/* 3. OPTIONAL CONFIRMATION BUTTON */}
+      {/* Selected Address Display Card */}
+      {currentAddress && (
+        <div className="bg-slate-50 border border-slate-200 p-2.5 rounded-xl flex items-start space-x-2 text-xs text-slate-700">
+          <MapPin className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <span className="text-[10px] uppercase font-bold text-slate-400 block">Selected Address:</span>
+            <span className="font-medium text-slate-800 line-clamp-2 leading-snug">{currentAddress}</span>
+          </div>
+        </div>
+      )}
+
+      {/* 4. OPTIONAL CONFIRMATION BUTTON */}
       {showConfirmButton && onConfirm && (
         <button
           type="button"
-          onClick={() => onConfirm(coords)}
+          onClick={() => onConfirm({ ...coords, address: currentAddress })}
           disabled={isSaving}
           className="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] disabled:opacity-70 text-white text-xs font-bold py-2.5 px-4 rounded-xl transition shadow-xs flex items-center justify-center space-x-1.5 cursor-pointer"
         >

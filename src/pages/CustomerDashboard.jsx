@@ -21,6 +21,7 @@ import {
   doc,
   updateDoc
 } from 'firebase/firestore';
+import AddressSearchBar from '../components/AddressSearchBar';
 
 // Customer Center Coordinates (Hyderabad)
 const CUSTOMER_LOCATION = {
@@ -169,10 +170,14 @@ export default function CustomerDashboard() {
       setCustomerCoords(prev => ({
         ...prev,
         lat: Number(user.lat),
-        lng: Number(user.lng)
+        lng: Number(user.lng),
+        ...(user.address ? { address: user.address } : {})
       }));
+      if (user.address) {
+        setServiceAddress(user.address);
+      }
     }
-  }, [user?.lat, user?.lng]);
+  }, [user?.lat, user?.lng, user?.address]);
 
   // Left Column View: 'providers' | 'bookings'
   const [activeLeftTab, setActiveLeftTab] = useState('providers');
@@ -216,7 +221,19 @@ export default function CustomerDashboard() {
     setHasMovedLocation(true);
   };
 
-  // Confirm and save coordinates to Firestore
+  // Handle Nominatim address search selection
+  const handleAddressSearchSelect = ({ lat, lng, address }) => {
+    setCustomerCoords({
+      lat,
+      lng,
+      address
+    });
+    setServiceAddress(address);
+    setMapTarget({ lat, lng });
+    setHasMovedLocation(true);
+  };
+
+  // Confirm and save coordinates & readable address to Firestore
   const handleConfirmCustomerLocation = async () => {
     const currentUid = user?.uid || user?.id;
     if (!currentUid) return;
@@ -225,7 +242,8 @@ export default function CustomerDashboard() {
     try {
       await updateDoc(doc(db, 'users', currentUid), {
         lat: customerCoords.lat,
-        lng: customerCoords.lng
+        lng: customerCoords.lng,
+        address: customerCoords.address || serviceAddress || ''
       });
       setHasMovedLocation(false);
       setLocationSavedAlert(true);
@@ -420,7 +438,8 @@ export default function CustomerDashboard() {
         try {
           await updateDoc(doc(db, 'users', currentUid), {
             lat: customerCoords.lat,
-            lng: customerCoords.lng
+            lng: customerCoords.lng,
+            address: serviceAddress || customerCoords.address || ''
           });
           setHasMovedLocation(false);
         } catch (e) {
@@ -853,9 +872,19 @@ export default function CustomerDashboard() {
         {/* RIGHT COLUMN: Interactive Leaflet Map with Real Provider Pins */}
         <div className="w-full lg:w-1/2 xl:w-7/12 h-[380px] lg:h-full relative bg-slate-200">
           
-          {/* HELPER LABEL FLOATING AT TOP OF MAP */}
-          <div className="absolute top-4 left-4 z-[999] max-w-sm pointer-events-auto space-y-2">
-            <div className="bg-white/95 backdrop-blur-xs px-3.5 py-2 rounded-2xl shadow-lg border border-slate-200 text-xs text-slate-800 flex items-center space-x-2">
+          {/* FLOATING TOP CONTROLS: NOMINATIM SEARCH BAR & HELPER LABEL */}
+          <div className="absolute top-4 left-4 right-4 sm:right-auto sm:w-[380px] z-[999] pointer-events-auto space-y-2">
+            {/* Free OpenStreetMap Nominatim Address Search Bar */}
+            <div className="bg-white/95 backdrop-blur-xs p-1.5 rounded-2xl shadow-xl border border-slate-200">
+              <AddressSearchBar
+                onSelectLocation={handleAddressSearchSelect}
+                placeholder="Search your area, e.g. Indiranagar, Bengaluru"
+                initialValue={customerCoords.address}
+              />
+            </div>
+
+            {/* Helper Label */}
+            <div className="bg-white/95 backdrop-blur-xs px-3.5 py-2 rounded-2xl shadow-md border border-slate-200 text-xs text-slate-800 flex items-center space-x-2">
               <MapPin className="h-4 w-4 text-blue-600 shrink-0" />
               <span className="font-semibold text-slate-700">
                 Location not exact? Click or drag the pin to your exact spot.
@@ -864,13 +893,20 @@ export default function CustomerDashboard() {
 
             {/* Confirm Spot Button shown when user moves their pin */}
             {hasMovedLocation && (
-              <div className="bg-emerald-600 text-white px-3.5 py-2 rounded-2xl shadow-lg flex items-center justify-between text-xs animate-in fade-in slide-in-from-top-2">
-                <span className="font-semibold">New spot chosen!</span>
+              <div className="bg-emerald-600 text-white p-3 rounded-2xl shadow-lg flex items-center justify-between text-xs animate-in fade-in slide-in-from-top-2">
+                <div className="min-w-0 pr-2">
+                  <span className="font-bold block">New spot chosen!</span>
+                  {customerCoords.address && (
+                    <span className="text-[10px] text-emerald-100 block truncate font-medium">
+                      {customerCoords.address}
+                    </span>
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={handleConfirmCustomerLocation}
                   disabled={isSavingCustomerLoc}
-                  className="ml-3 bg-white text-emerald-800 hover:bg-emerald-50 px-2.5 py-1 rounded-xl font-bold text-xs transition cursor-pointer shadow-xs flex items-center space-x-1"
+                  className="bg-white text-emerald-800 hover:bg-emerald-50 px-3 py-1.5 rounded-xl font-bold text-xs transition cursor-pointer shadow-xs flex items-center space-x-1 shrink-0"
                 >
                   {isSavingCustomerLoc ? (
                     <>
@@ -885,9 +921,9 @@ export default function CustomerDashboard() {
             )}
 
             {locationSavedAlert && (
-              <div className="bg-emerald-100 border border-emerald-300 text-emerald-900 px-3 py-1.5 rounded-xl shadow-md text-xs font-bold flex items-center space-x-1.5 animate-in fade-in">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                <span>Exact location saved to Firestore!</span>
+              <div className="bg-emerald-100 border border-emerald-300 text-emerald-900 px-3 py-2 rounded-xl shadow-md text-xs font-bold flex items-center space-x-1.5 animate-in fade-in">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                <span>Exact address & coordinates saved to Firestore!</span>
               </div>
             )}
           </div>
@@ -903,7 +939,7 @@ export default function CustomerDashboard() {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
 
-            {/* Recenter handler */}
+            {/* Recenter handler with useMap().flyTo([lat, lon], 15) */}
             <MapRecenter targetCoords={mapTarget} />
 
             {/* Click anywhere on map to move customer pin */}
@@ -931,7 +967,12 @@ export default function CustomerDashboard() {
                   <div className="flex items-center space-x-1.5 text-blue-700 font-bold text-xs uppercase tracking-wider mb-1">
                     <span>📍 Your Location (Customer)</span>
                   </div>
-                  <p className="text-xs text-slate-600 font-mono">
+                  {customerCoords.address && (
+                    <p className="text-xs text-slate-700 font-medium leading-tight mb-1">
+                      {customerCoords.address}
+                    </p>
+                  )}
+                  <p className="text-[10px] text-slate-500 font-mono">
                     Lat: {customerCoords.lat.toFixed(5)}, Lng: {customerCoords.lng.toFixed(5)}
                   </p>
                   <p className="text-[11px] text-emerald-600 mt-1 font-semibold">

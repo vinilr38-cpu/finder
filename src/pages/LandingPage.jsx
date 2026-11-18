@@ -33,6 +33,7 @@ export default function LandingPage() {
   const [locationCaptured, setLocationCaptured] = useState(false);
   const [locationError, setLocationError] = useState('');
   const [isManualLocation, setIsManualLocation] = useState(false);
+  const [address, setAddress] = useState('');
   const [coordinates, setCoordinates] = useState({
     lat: 17.385044,
     lng: 78.486671
@@ -154,8 +155,11 @@ export default function LandingPage() {
           price: Number(price),
           phone: phone.trim(),
           lat: Number(coordinates.lat) || 17.385044,
-          lng: Number(coordinates.lng) || 78.486671
-        } : {})
+          lng: Number(coordinates.lng) || 78.486671,
+          address: address.trim() || 'Service Base Location'
+        } : {
+          address: address.trim() || ''
+        })
       };
 
       const newUser = await signup(email.trim(), password, profileData);
@@ -538,17 +542,23 @@ export default function LandingPage() {
                       </div>
                     )}
 
-                    {/* INTERACTIVE DRAGGABLE LEAFLET MAP */}
+                    {/* INTERACTIVE DRAGGABLE LEAFLET MAP & NOMINATIM SEARCH BAR */}
                     <DraggableLocationPicker
                       coords={coordinates}
+                      address={address}
                       onChange={(newCoords) => {
-                        setCoordinates(newCoords);
+                        setCoordinates({ lat: newCoords.lat, lng: newCoords.lng });
+                        if (newCoords.address) {
+                          setAddress(newCoords.address);
+                        }
                         setLocationCaptured(true);
                       }}
                       onDetectCurrentLocation={handleDetectLocation}
                       isDetecting={isDetectingLocation}
                       role="provider"
-                      height="210px"
+                      height="220px"
+                      showSearchBar={true}
+                      searchPlaceholder="Search your area, e.g. Indiranagar, Bengaluru"
                       helperText="Location not exact? Click or drag the pin to your exact spot."
                     />
 

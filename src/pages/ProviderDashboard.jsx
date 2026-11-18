@@ -41,6 +41,7 @@ export default function ProviderDashboard() {
   const [isUpdatingLocation, setIsUpdatingLocation] = useState(false);
   const [isSavingLocation, setIsSavingLocation] = useState(false);
   const [showLocationMap, setShowLocationMap] = useState(true);
+  const [providerAddress, setProviderAddress] = useState(user?.address || '');
   const [providerCoords, setProviderCoords] = useState({
     lat: Number(user?.lat) || 17.385044,
     lng: Number(user?.lng) || 78.486671
@@ -55,7 +56,7 @@ export default function ProviderDashboard() {
   // Live notification banner
   const [notification, setNotification] = useState(null);
 
-  // Keep isOnline and coords in sync if user profile loads
+  // Keep isOnline, coords and address in sync if user profile loads
   useEffect(() => {
     if (user?.isOnline !== undefined) {
       setIsOnline(user.isOnline);
@@ -66,7 +67,10 @@ export default function ProviderDashboard() {
         lng: Number(user.lng)
       });
     }
-  }, [user?.isOnline, user?.lat, user?.lng]);
+    if (user?.address) {
+      setProviderAddress(user.address);
+    }
+  }, [user?.isOnline, user?.lat, user?.lng, user?.address]);
 
   const handleLogout = async () => {
     await logout();
@@ -95,7 +99,7 @@ export default function ProviderDashboard() {
     }
   };
 
-  // 2. CONFIRM & SAVE LOCATION: Saves exact lat/lng to Firestore users/{uid}
+  // 2. CONFIRM & SAVE LOCATION: Saves exact lat/lng and readable address to Firestore users/{uid}
   const handleConfirmLocation = async (coordsToSave) => {
     const coords = coordsToSave || providerCoords;
     const currentUid = user?.uid || user?.id;
@@ -103,11 +107,14 @@ export default function ProviderDashboard() {
 
     setIsSavingLocation(true);
     try {
-      await updateDoc(doc(db, 'users', currentUid), {
+      const updatePayload = {
         lat: Number(coords.lat),
-        lng: Number(coords.lng)
-      });
-      setNotification(`📍 Exact location confirmed and saved to Firestore! Coordinates: [${Number(coords.lat).toFixed(5)}, ${Number(coords.lng).toFixed(5)}]`);
+        lng: Number(coords.lng),
+        ...(coords.address ? { address: coords.address } : (providerAddress ? { address: providerAddress } : {}))
+      };
+
+      await updateDoc(doc(db, 'users', currentUid), updatePayload);
+      setNotification(`📍 Exact location confirmed and saved to Firestore! ${coords.address ? `Address: ${coords.address.slice(0, 40)}...` : `Coordinates: [${Number(coords.lat).toFixed(4)}, ${Number(coords.lng).toFixed(4)}]`}`);
     } catch (err) {
       console.error('Error saving coordinates to Firestore:', err);
       alert('Failed to update coordinates in Firestore: ' + err.message);
@@ -464,8 +471,12 @@ export default function ProviderDashboard() {
             <div className="pt-1 animate-in fade-in duration-150">
               <DraggableLocationPicker
                 coords={providerCoords}
+                address={providerAddress}
                 onChange={(newCoords) => {
-                  setProviderCoords(newCoords);
+                  setProviderCoords({ lat: newCoords.lat, lng: newCoords.lng });
+                  if (newCoords.address) {
+                    setProviderAddress(newCoords.address);
+                  }
                 }}
                 onConfirm={handleConfirmLocation}
                 showConfirmButton={true}
@@ -474,7 +485,9 @@ export default function ProviderDashboard() {
                 onDetectCurrentLocation={handleUpdateLocation}
                 isDetecting={isUpdatingLocation}
                 role="provider"
-                height="270px"
+                height="280px"
+                showSearchBar={true}
+                searchPlaceholder="Search your area, e.g. Indiranagar, Bengaluru"
                 helperText="Location not exact? Click or drag the pin to your exact spot."
               />
             </div>
