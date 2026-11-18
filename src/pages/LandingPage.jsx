@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { 
-  LayoutDashboard, User, Wrench, Shield, ArrowRight, 
-  CheckCircle2, AlertCircle, Loader2, Sparkles, Phone, 
+import {
+  LayoutDashboard, User, Wrench, Shield, ArrowRight,
+  CheckCircle2, AlertCircle, Loader2, Sparkles, Phone,
   MapPin, Crosshair, RefreshCw, Edit3
 } from 'lucide-react';
 import DraggableLocationPicker from '../components/DraggableLocationPicker';
@@ -163,7 +163,7 @@ export default function LandingPage() {
       };
 
       const newUser = await signup(email.trim(), password, profileData);
-      
+
       if (newUser.role === 'provider') {
         navigate('/provider');
       } else {
@@ -180,7 +180,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-between font-sans text-slate-800">
-      
+
       {/* 1. TOP NAVBAR */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
@@ -207,7 +207,7 @@ export default function LandingPage() {
 
       {/* 2. MAIN CONTENT AREA */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-10 md:py-14 flex-1 flex flex-col lg:flex-row items-center gap-12 justify-center">
-        
+
         {/* Left Column: Platform Presentation & Trust Pillars */}
         <div className="flex-1 space-y-6 max-w-xl">
           <div className="inline-flex items-center space-x-2 bg-blue-50 border border-blue-200 text-blue-700 px-3.5 py-1.5 rounded-full text-xs font-semibold">
@@ -249,7 +249,7 @@ export default function LandingPage() {
 
         {/* Right Column: Modern Authentication Card (Login & Sign Up) */}
         <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-slate-200 p-6 sm:p-8">
-          
+
           {/* Tab Switcher: Login vs Sign Up */}
           <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-slate-100 rounded-2xl mb-6">
             <button
@@ -258,11 +258,10 @@ export default function LandingPage() {
                 setActiveTab('login');
                 setErrorMessage('');
               }}
-              className={`py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer ${
-                activeTab === 'login'
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-900'
-              }`}
+              className={`py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer ${activeTab === 'login'
+                ? 'bg-white text-blue-600 shadow-sm'
+                : 'text-slate-500 hover:text-slate-900'
+                }`}
             >
               Log In
             </button>
@@ -272,11 +271,10 @@ export default function LandingPage() {
                 setActiveTab('signup');
                 setErrorMessage('');
               }}
-              className={`py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer ${
-                activeTab === 'signup'
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-900'
-              }`}
+              className={`py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer ${activeTab === 'signup'
+                ? 'bg-white text-blue-600 shadow-sm'
+                : 'text-slate-500 hover:text-slate-900'
+                }`}
             >
               Sign Up
             </button>
@@ -360,7 +358,7 @@ export default function LandingPage() {
           {/* TAB 2: SIGN UP FORM */}
           {activeTab === 'signup' && (
             <form onSubmit={handleSignupSubmit} className="space-y-4">
-              
+
               {/* Segmented Toggle for Role (Customer or Service Provider) */}
               <div>
                 <label className="block text-xs font-bold uppercase text-slate-600 mb-1.5">
@@ -370,11 +368,10 @@ export default function LandingPage() {
                   <button
                     type="button"
                     onClick={() => setSelectedRole('customer')}
-                    className={`flex items-center justify-center py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                      selectedRole === 'customer'
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
+                    className={`flex items-center justify-center py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${selectedRole === 'customer'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                      }`}
                   >
                     <User className="h-3.5 w-3.5 mr-1.5" />
                     <span>Customer</span>
@@ -383,11 +380,10 @@ export default function LandingPage() {
                   <button
                     type="button"
                     onClick={() => setSelectedRole('provider')}
-                    className={`flex items-center justify-center py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                      selectedRole === 'provider'
-                        ? 'bg-emerald-600 text-white shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
+                    className={`flex items-center justify-center py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${selectedRole === 'provider'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                      }`}
                   >
                     <Wrench className="h-3.5 w-3.5 mr-1.5" />
                     <span>Service Provider</span>
@@ -615,11 +611,10 @@ export default function LandingPage() {
               <button
                 type="submit"
                 disabled={isSubmitting || isDetectingLocation}
-                className={`w-full mt-2 active:scale-[0.99] disabled:opacity-75 text-white font-bold py-3 px-4 rounded-xl transition shadow-lg flex items-center justify-center space-x-2 cursor-pointer text-sm ${
-                  selectedRole === 'provider'
-                    ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20'
-                    : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/20'
-                }`}
+                className={`w-full mt-2 active:scale-[0.99] disabled:opacity-75 text-white font-bold py-3 px-4 rounded-xl transition shadow-lg flex items-center justify-center space-x-2 cursor-pointer text-sm ${selectedRole === 'provider'
+                  ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20'
+                  : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/20'
+                  }`}
               >
                 {isSubmitting ? (
                   <>

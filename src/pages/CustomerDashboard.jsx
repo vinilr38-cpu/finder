@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  LogOut, Search, MapPin, Calendar, Clock, 
-  Wrench, Zap, Sparkles, Hammer, 
+import {
+  LogOut, Search, MapPin, Calendar, Clock,
+  Wrench, Zap, Sparkles, Hammer,
   CheckCircle2, X, ChevronRight, User as UserIcon,
   Crosshair, Loader2, Phone, AlertCircle, Radio, Wind,
   Bookmark, XCircle, MessageSquare
@@ -11,11 +11,11 @@ import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 're
 import L from 'leaflet';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
-import { 
-  collection, 
-  query, 
-  where, 
-  onSnapshot, 
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
   addDoc,
   serverTimestamp,
   doc,
@@ -23,6 +23,7 @@ import {
 } from 'firebase/firestore';
 import AddressSearchBar from '../components/AddressSearchBar';
 import BookingChatModal from '../components/BookingChatModal';
+import { getWhatsAppUrl, WhatsAppIcon } from '../utils/whatsapp';
 
 // Customer Center Coordinates (Hyderabad)
 const CUSTOMER_LOCATION = {
@@ -37,9 +38,9 @@ function calculateDistanceKm(lat1, lon1, lat2, lon2) {
   const R = 6371; // Earth's radius in km
   const dLat = (lat2 - lat1) * (Math.PI / 180);
   const dLon = (lon2 - lon1) * (Math.PI / 180);
-  const a = 
+  const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * 
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
     Math.sin(dLon / 2) * Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   const dist = R * c;
@@ -503,7 +504,7 @@ export default function CustomerDashboard() {
 
   return (
     <div className="h-screen w-screen flex flex-col bg-slate-100 font-sans text-slate-800 overflow-hidden">
-      
+
       {/* 1. TOP NAVIGATION BAR */}
       <nav className="h-16 bg-white border-b border-slate-200 px-4 sm:px-6 flex items-center justify-between shrink-0 z-40 shadow-xs">
         <div className="flex items-center space-x-3">
@@ -553,18 +554,17 @@ export default function CustomerDashboard() {
 
         {/* LEFT COLUMN: Segmented Views (Find Specialists vs My Bookings) */}
         <div className="w-full lg:w-1/2 xl:w-5/12 h-full flex flex-col bg-slate-50 border-r border-slate-200 z-10">
-          
+
           {/* View Mode Switcher: Specialists vs My Bookings */}
           <div className="p-3 bg-white border-b border-slate-200">
             <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl">
               <button
                 type="button"
                 onClick={() => setActiveLeftTab('providers')}
-                className={`py-2 rounded-lg text-xs font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer ${
-                  activeLeftTab === 'providers'
-                    ? 'bg-white text-blue-600 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
+                className={`py-2 rounded-lg text-xs font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer ${activeLeftTab === 'providers'
+                  ? 'bg-white text-blue-600 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+                  }`}
               >
                 <Wrench className="h-3.5 w-3.5" />
                 <span>Specialists ({providers.length})</span>
@@ -573,11 +573,10 @@ export default function CustomerDashboard() {
               <button
                 type="button"
                 onClick={() => setActiveLeftTab('bookings')}
-                className={`py-2 rounded-lg text-xs font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer ${
-                  activeLeftTab === 'bookings'
-                    ? 'bg-white text-blue-600 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
+                className={`py-2 rounded-lg text-xs font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer ${activeLeftTab === 'bookings'
+                  ? 'bg-white text-blue-600 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+                  }`}
               >
                 <Bookmark className="h-3.5 w-3.5" />
                 <span>My Bookings ({myBookings.length})</span>
@@ -611,11 +610,10 @@ export default function CustomerDashboard() {
                     <button
                       key={cat.name}
                       onClick={() => setSelectedCategory(cat.name)}
-                      className={`px-3 py-1.5 rounded-full shrink-0 transition cursor-pointer flex items-center space-x-1 ${
-                        selectedCategory === cat.name
-                          ? 'bg-blue-600 text-white font-semibold shadow-xs'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
+                      className={`px-3 py-1.5 rounded-full shrink-0 transition cursor-pointer flex items-center space-x-1 ${selectedCategory === cat.name
+                        ? 'bg-blue-600 text-white font-semibold shadow-xs'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
                     >
                       <span>{cat.name}</span>
                     </button>
@@ -647,7 +645,7 @@ export default function CustomerDashboard() {
                     <div className="w-16 h-16 rounded-3xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto border-2 border-blue-100">
                       <Radio className="h-8 w-8 animate-pulse" />
                     </div>
-                    
+
                     <div className="space-y-1.5">
                       <h3 className="font-extrabold text-slate-900 text-lg">
                         No Service Providers Currently Online
@@ -687,11 +685,10 @@ export default function CustomerDashboard() {
                       <div
                         key={provider.id}
                         onClick={() => handleFocusProvider(provider, coords)}
-                        className={`bg-white rounded-2xl p-4 sm:p-5 border transition-all cursor-pointer shadow-xs hover:shadow-md flex flex-col justify-between ${
-                          isSelected
-                            ? 'border-blue-600 ring-2 ring-blue-500/20 bg-blue-50/20'
-                            : 'border-slate-200 hover:border-slate-300'
-                        }`}
+                        className={`bg-white rounded-2xl p-4 sm:p-5 border transition-all cursor-pointer shadow-xs hover:shadow-md flex flex-col justify-between ${isSelected
+                          ? 'border-blue-600 ring-2 ring-blue-500/20 bg-blue-50/20'
+                          : 'border-slate-200 hover:border-slate-300'
+                          }`}
                       >
                         {/* Top: Avatar, Name, Category */}
                         <div className="flex items-start space-x-3.5">
@@ -866,8 +863,8 @@ export default function CustomerDashboard() {
                           </span>
                         </div>
 
-                        {/* Real-time Call and Message Options */}
-                        <div className="flex items-center space-x-2">
+                        {/* Real-time Call, WhatsApp and Message Options */}
+                        <div className="flex flex-wrap items-center gap-1.5">
                           {/* Call Button (<a href={`tel:${phoneNumber}`}>) */}
                           <a
                             href={`tel:${booking.providerPhone || '+91 98765 12345'}`}
@@ -877,11 +874,31 @@ export default function CustomerDashboard() {
                             <Phone className="h-3.5 w-3.5" />
                             <span>Call</span>
                             {booking.providerPhone && (
-                              <span className="text-[10px] opacity-85 hidden xl:inline ml-0.5 font-normal">
+                              <span className="text-[10px] opacity-85 hidden 2xl:inline ml-0.5 font-normal">
                                 ({booking.providerPhone})
                               </span>
                             )}
                           </a>
+
+                          {/* WhatsApp Button */}
+                          {booking.providerPhone && getWhatsAppUrl(
+                            booking.providerPhone,
+                            'Hi ' + (booking.providerName || 'Provider') + ', I booked your ' + (booking.serviceCategory || 'Service') + ' service on Local Service Finder.'
+                          ) && (
+                            <a
+                              href={getWhatsAppUrl(
+                                booking.providerPhone,
+                                'Hi ' + (booking.providerName || 'Provider') + ', I booked your ' + (booking.serviceCategory || 'Service') + ' service on Local Service Finder.'
+                              )}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="Chat with Provider on WhatsApp"
+                              className="bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] text-white px-3 py-1.5 rounded-xl font-bold transition shadow-xs flex items-center space-x-1 cursor-pointer"
+                            >
+                              <WhatsAppIcon className="h-3.5 w-3.5" />
+                              <span>WhatsApp</span>
+                            </a>
+                          )}
 
                           {/* Message Button (Opens BookingChatModal) */}
                           <button
@@ -905,7 +922,7 @@ export default function CustomerDashboard() {
 
         {/* RIGHT COLUMN: Interactive Leaflet Map with Real Provider Pins */}
         <div className="w-full lg:w-1/2 xl:w-7/12 h-[380px] lg:h-full relative bg-slate-200">
-          
+
           {/* FLOATING TOP CONTROLS: NOMINATIM SEARCH BAR & HELPER LABEL */}
           <div className="absolute top-4 left-4 right-4 sm:right-auto sm:w-[380px] z-[999] pointer-events-auto space-y-2">
             {/* Free OpenStreetMap Nominatim Address Search Bar */}

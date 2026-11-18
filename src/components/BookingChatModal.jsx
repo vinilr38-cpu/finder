@@ -12,6 +12,7 @@ import {
   X, Send, Phone, MessageSquare, Loader2, 
   User, CheckCheck, Clock 
 } from 'lucide-react';
+import { getWhatsAppUrl, WhatsAppIcon } from '../utils/whatsapp';
 
 function formatMessageTime(timestamp) {
   if (timestamp && typeof timestamp.toDate === 'function') {
@@ -151,6 +152,29 @@ export default function BookingChatModal({ booking, currentUser, onClose }) {
                 className="bg-emerald-600 hover:bg-emerald-700 text-white p-2 rounded-xl transition shadow-xs flex items-center justify-center cursor-pointer"
               >
                 <Phone className="h-4 w-4" />
+              </a>
+            )}
+
+            {/* Quick WhatsApp Button in Chat Header */}
+            {otherPartyPhone && getWhatsAppUrl(
+              otherPartyPhone,
+              isCurrentUserCustomer
+                ? 'Hi ' + (booking?.providerName || 'Provider') + ', I booked your ' + (booking?.serviceCategory || 'Service') + ' service on Local Service Finder.'
+                : 'Hi ' + (booking?.customerName || 'Customer') + ', this is ' + (booking?.providerName || currentUser?.name || 'your provider') + ' regarding your ' + (booking?.serviceCategory || 'service') + ' booking.'
+            ) && (
+              <a
+                href={getWhatsAppUrl(
+                  otherPartyPhone,
+                  isCurrentUserCustomer
+                    ? 'Hi ' + (booking?.providerName || 'Provider') + ', I booked your ' + (booking?.serviceCategory || 'Service') + ' service on Local Service Finder.'
+                    : 'Hi ' + (booking?.customerName || 'Customer') + ', this is ' + (booking?.providerName || currentUser?.name || 'your provider') + ' regarding your ' + (booking?.serviceCategory || 'service') + ' booking.'
+                )}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`Chat with ${otherPartyName} on WhatsApp`}
+                className="bg-emerald-500 hover:bg-emerald-600 text-white p-2 rounded-xl transition shadow-xs flex items-center justify-center cursor-pointer"
+              >
+                <WhatsAppIcon className="h-4 w-4" />
               </a>
             )}
 

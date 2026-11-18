@@ -1,24 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  LogOut, Wrench, DollarSign, CheckCircle2, 
-  MapPin, Bell, XCircle, Briefcase, 
+import {
+  LogOut, Wrench, DollarSign, CheckCircle2,
+  MapPin, Bell, XCircle, Briefcase,
   User, Radio, Calendar, Clock, Loader2, Sparkles,
   Crosshair, RefreshCw, ChevronDown, ChevronUp,
   Phone, MessageSquare
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
-import { 
-  collection, 
-  query, 
-  where, 
-  onSnapshot, 
-  doc, 
-  updateDoc 
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  doc,
+  updateDoc
 } from 'firebase/firestore';
 import DraggableLocationPicker from '../components/DraggableLocationPicker';
 import BookingChatModal from '../components/BookingChatModal';
+import { getWhatsAppUrl, WhatsAppIcon } from '../utils/whatsapp';
 
 // Helper to format Firestore serverTimestamp
 function formatRequestTime(timestamp, createdMillis) {
@@ -288,7 +289,7 @@ export default function ProviderDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-100 font-sans text-slate-800 flex flex-col justify-between">
-      
+
       {/* 1. TOP NAVIGATION BAR */}
       <nav className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
@@ -352,26 +353,23 @@ export default function ProviderDashboard() {
       <main className="max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 space-y-8 flex-1">
 
         {/* 2. LARGE ONLINE / OFFLINE TOGGLE SWITCH CARD */}
-        <div className={`rounded-3xl p-6 sm:p-8 border-2 transition-all shadow-md ${
-          isOnline 
-            ? 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white border-emerald-400 shadow-emerald-600/10' 
-            : 'bg-white text-slate-800 border-slate-300 shadow-slate-200/50'
-        }`}>
+        <div className={`rounded-3xl p-6 sm:p-8 border-2 transition-all shadow-md ${isOnline
+          ? 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white border-emerald-400 shadow-emerald-600/10'
+          : 'bg-white text-slate-800 border-slate-300 shadow-slate-200/50'
+          }`}>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-            
+
             {/* Status Information & Live Coords */}
             <div className="space-y-2">
               <div className="flex items-center space-x-3">
-                <span className={`h-4 w-4 rounded-full relative flex items-center justify-center ${
-                  isOnline ? 'bg-white' : 'bg-slate-400'
-                }`}>
+                <span className={`h-4 w-4 rounded-full relative flex items-center justify-center ${isOnline ? 'bg-white' : 'bg-slate-400'
+                  }`}>
                   {isOnline && (
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75"></span>
                   )}
                 </span>
-                <span className={`text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
-                  isOnline ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
-                }`}>
+                <span className={`text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full ${isOnline ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                  }`}>
                   Status: {isOnline ? 'LIVE & VISIBLE TO CUSTOMERS' : 'CURRENTLY OFFLINE'}
                 </span>
               </div>
@@ -388,9 +386,8 @@ export default function ProviderDashboard() {
 
               {/* Coordinates Badge */}
               <div className="pt-2 flex flex-wrap items-center gap-2 text-xs">
-                <span className={`px-2.5 py-1 rounded-lg font-mono flex items-center ${
-                  isOnline ? 'bg-emerald-800/40 text-emerald-100 border border-emerald-400/30' : 'bg-slate-100 text-slate-600 border border-slate-200'
-                }`}>
+                <span className={`px-2.5 py-1 rounded-lg font-mono flex items-center ${isOnline ? 'bg-emerald-800/40 text-emerald-100 border border-emerald-400/30' : 'bg-slate-100 text-slate-600 border border-slate-200'
+                  }`}>
                   <MapPin className="h-3.5 w-3.5 mr-1 text-emerald-300" />
                   Map Coordinates: {providerCoords.lat.toFixed(4)}, {providerCoords.lng.toFixed(4)}
                 </span>
@@ -398,9 +395,8 @@ export default function ProviderDashboard() {
                 <button
                   onClick={handleUpdateLocation}
                   disabled={isUpdatingLocation}
-                  className={`underline font-bold transition cursor-pointer flex items-center space-x-1 ${
-                    isOnline ? 'text-white hover:text-emerald-200' : 'text-emerald-600 hover:text-emerald-800'
-                  }`}
+                  className={`underline font-bold transition cursor-pointer flex items-center space-x-1 ${isOnline ? 'text-white hover:text-emerald-200' : 'text-emerald-600 hover:text-emerald-800'
+                    }`}
                 >
                   <RefreshCw className={`h-3 w-3 ${isUpdatingLocation ? 'animate-spin' : ''}`} />
                   <span>{isUpdatingLocation ? 'Locating...' : 'Update GPS'}</span>
@@ -410,9 +406,8 @@ export default function ProviderDashboard() {
 
             {/* LARGE TOGGLE SWITCH */}
             <div className="flex flex-col items-center sm:items-end shrink-0">
-              <span className={`text-xs font-extrabold uppercase mb-2 tracking-wider ${
-                isOnline ? 'text-emerald-100' : 'text-slate-500'
-              }`}>
+              <span className={`text-xs font-extrabold uppercase mb-2 tracking-wider ${isOnline ? 'text-emerald-100' : 'text-slate-500'
+                }`}>
                 {isUpdatingStatus ? 'SAVING...' : isOnline ? 'ONLINE' : 'OFFLINE'}
               </span>
 
@@ -422,18 +417,16 @@ export default function ProviderDashboard() {
                 disabled={isUpdatingStatus}
                 aria-checked={isOnline}
                 onClick={handleToggleOnline}
-                className={`w-24 h-12 rounded-full p-1.5 transition-colors duration-300 ease-in-out relative flex items-center cursor-pointer shadow-inner border-2 ${
-                  isOnline
-                    ? 'bg-emerald-400 border-white/40'
-                    : 'bg-slate-300 border-slate-300'
-                }`}
+                className={`w-24 h-12 rounded-full p-1.5 transition-colors duration-300 ease-in-out relative flex items-center cursor-pointer shadow-inner border-2 ${isOnline
+                  ? 'bg-emerald-400 border-white/40'
+                  : 'bg-slate-300 border-slate-300'
+                  }`}
               >
                 <div
-                  className={`w-9 h-9 rounded-full bg-white shadow-md transform transition-transform duration-300 ease-in-out flex items-center justify-center font-bold text-xs ${
-                    isOnline
-                      ? 'translate-x-12 text-emerald-700'
-                      : 'translate-x-0 text-slate-400'
-                  }`}
+                  className={`w-9 h-9 rounded-full bg-white shadow-md transform transition-transform duration-300 ease-in-out flex items-center justify-center font-bold text-xs ${isOnline
+                    ? 'translate-x-12 text-emerald-700'
+                    : 'translate-x-0 text-slate-400'
+                    }`}
                 >
                   {isOnline ? 'ON' : 'OFF'}
                 </div>
@@ -642,26 +635,41 @@ export default function ProviderDashboard() {
 
                   {/* Call & Message Actions + Accept & Decline */}
                   <div className="pt-5 space-y-2.5">
-                    {/* One-Tap Call & Real-time Chat Buttons */}
-                    <div className="grid grid-cols-2 gap-2">
+                    {/* One-Tap Call, WhatsApp & Real-time Chat Buttons */}
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <a
                         href={`tel:${request.customerPhone || '+91 98765 43210'}`}
                         title={`Call Customer: ${request.customerPhone || '+91 98765 43210'}`}
-                        className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white py-2 px-3 rounded-xl font-bold text-xs transition shadow-xs flex items-center justify-center space-x-1.5 cursor-pointer"
+                        className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white py-2 px-3 rounded-xl font-bold text-xs transition shadow-xs flex items-center justify-center space-x-1 cursor-pointer flex-1"
                       >
                         <Phone className="h-3.5 w-3.5" />
                         <span>Call</span>
-                        {request.customerPhone && (
-                          <span className="text-[10px] opacity-85 hidden sm:inline ml-0.5 font-normal">
-                            ({request.customerPhone})
-                          </span>
-                        )}
                       </a>
+
+                      {/* WhatsApp Button */}
+                      {request.customerPhone && getWhatsAppUrl(
+                        request.customerPhone,
+                        'Hi ' + (request.customerName || 'Customer') + ', this is ' + (request.providerName || user?.name || 'your provider') + ' regarding your ' + (request.serviceCategory || 'service') + ' booking.'
+                      ) && (
+                        <a
+                          href={getWhatsAppUrl(
+                            request.customerPhone,
+                            'Hi ' + (request.customerName || 'Customer') + ', this is ' + (request.providerName || user?.name || 'your provider') + ' regarding your ' + (request.serviceCategory || 'service') + ' booking.'
+                          )}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Chat with Customer on WhatsApp"
+                          className="bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] text-white py-2 px-3 rounded-xl font-bold text-xs transition shadow-xs flex items-center justify-center space-x-1 cursor-pointer flex-1"
+                        >
+                          <WhatsAppIcon className="h-3.5 w-3.5" />
+                          <span>WhatsApp</span>
+                        </a>
+                      )}
 
                       <button
                         type="button"
                         onClick={() => setActiveChatBooking(request)}
-                        className="bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white py-2 px-3 rounded-xl font-bold text-xs transition shadow-xs flex items-center justify-center space-x-1.5 cursor-pointer"
+                        className="bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white py-2 px-3 rounded-xl font-bold text-xs transition shadow-xs flex items-center justify-center space-x-1 cursor-pointer flex-1"
                       >
                         <MessageSquare className="h-3.5 w-3.5" />
                         <span>Message</span>
@@ -728,22 +736,42 @@ export default function ProviderDashboard() {
                     <span className="font-extrabold text-base text-slate-900">₹{job.price}</span>
                   </div>
 
-                  {/* Actions: Call & Message + Mark Completed */}
+                  {/* Actions: Call, WhatsApp & Message + Mark Completed */}
                   <div className="space-y-2 pt-2 border-t border-slate-100">
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <a
                         href={`tel:${job.customerPhone || '+91 98765 43210'}`}
                         title={`Call Customer: ${job.customerPhone || '+91 98765 43210'}`}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white py-1.5 px-3 rounded-xl font-bold text-xs transition flex items-center justify-center space-x-1 cursor-pointer"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white py-1.5 px-3 rounded-xl font-bold text-xs transition flex items-center justify-center space-x-1 cursor-pointer flex-1"
                       >
                         <Phone className="h-3 w-3" />
-                        <span>Call Customer</span>
+                        <span>Call</span>
                       </a>
+
+                      {/* WhatsApp Button */}
+                      {job.customerPhone && getWhatsAppUrl(
+                        job.customerPhone,
+                        'Hi ' + (job.customerName || 'Customer') + ', this is ' + (job.providerName || user?.name || 'your provider') + ' regarding your ' + (job.serviceCategory || 'service') + ' booking.'
+                      ) && (
+                        <a
+                          href={getWhatsAppUrl(
+                            job.customerPhone,
+                            'Hi ' + (job.customerName || 'Customer') + ', this is ' + (job.providerName || user?.name || 'your provider') + ' regarding your ' + (job.serviceCategory || 'service') + ' booking.'
+                          )}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Chat with Customer on WhatsApp"
+                          className="bg-emerald-500 hover:bg-emerald-600 text-white py-1.5 px-3 rounded-xl font-bold text-xs transition flex items-center justify-center space-x-1 cursor-pointer flex-1"
+                        >
+                          <WhatsAppIcon className="h-3.5 w-3.5" />
+                          <span>WhatsApp</span>
+                        </a>
+                      )}
 
                       <button
                         type="button"
                         onClick={() => setActiveChatBooking(job)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white py-1.5 px-3 rounded-xl font-bold text-xs transition flex items-center justify-center space-x-1 cursor-pointer"
+                        className="bg-blue-600 hover:bg-blue-700 text-white py-1.5 px-3 rounded-xl font-bold text-xs transition flex items-center justify-center space-x-1 cursor-pointer flex-1"
                       >
                         <MessageSquare className="h-3 w-3" />
                         <span>Message</span>
