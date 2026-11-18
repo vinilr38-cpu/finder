@@ -4,7 +4,8 @@ import {
   LogOut, Wrench, DollarSign, CheckCircle2, 
   MapPin, Bell, XCircle, Briefcase, 
   User, Radio, Calendar, Clock, Loader2, Sparkles,
-  Crosshair, RefreshCw, ChevronDown, ChevronUp
+  Crosshair, RefreshCw, ChevronDown, ChevronUp,
+  Phone, MessageSquare
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
@@ -17,6 +18,7 @@ import {
   updateDoc 
 } from 'firebase/firestore';
 import DraggableLocationPicker from '../components/DraggableLocationPicker';
+import BookingChatModal from '../components/BookingChatModal';
 
 // Helper to format Firestore serverTimestamp
 function formatRequestTime(timestamp, createdMillis) {
@@ -52,6 +54,9 @@ export default function ProviderDashboard() {
   const [acceptedJobs, setAcceptedJobs] = useState([]); // status == 'accepted'
   const [completedJobs, setCompletedJobs] = useState([]); // status == 'completed'
   const [loadingBookings, setLoadingBookings] = useState(true);
+
+  // Real-time Chat modal state
+  const [activeChatBooking, setActiveChatBooking] = useState(null);
 
   // Live notification banner
   const [notification, setNotification] = useState(null);
@@ -635,23 +640,52 @@ export default function ProviderDashboard() {
                     </div>
                   </div>
 
-                  {/* LARGE ACCEPT AND DECLINE BUTTONS */}
-                  <div className="grid grid-cols-2 gap-3 pt-6">
-                    <button
-                      onClick={() => handleAcceptRequest(request)}
-                      className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white py-3.5 px-4 rounded-2xl font-bold text-sm sm:text-base transition shadow-md shadow-emerald-600/20 flex items-center justify-center space-x-2 cursor-pointer"
-                    >
-                      <CheckCircle2 className="h-5 w-5" />
-                      <span>Accept</span>
-                    </button>
+                  {/* Call & Message Actions + Accept & Decline */}
+                  <div className="pt-5 space-y-2.5">
+                    {/* One-Tap Call & Real-time Chat Buttons */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <a
+                        href={`tel:${request.customerPhone || '+91 98765 43210'}`}
+                        title={`Call Customer: ${request.customerPhone || '+91 98765 43210'}`}
+                        className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white py-2 px-3 rounded-xl font-bold text-xs transition shadow-xs flex items-center justify-center space-x-1.5 cursor-pointer"
+                      >
+                        <Phone className="h-3.5 w-3.5" />
+                        <span>Call</span>
+                        {request.customerPhone && (
+                          <span className="text-[10px] opacity-85 hidden sm:inline ml-0.5 font-normal">
+                            ({request.customerPhone})
+                          </span>
+                        )}
+                      </a>
 
-                    <button
-                      onClick={() => handleDeclineRequest(request)}
-                      className="bg-white hover:bg-red-50 hover:text-red-600 border-2 border-slate-200 hover:border-red-300 text-slate-700 active:scale-[0.98] py-3.5 px-4 rounded-2xl font-bold text-sm sm:text-base transition flex items-center justify-center space-x-2 cursor-pointer"
-                    >
-                      <XCircle className="h-5 w-5" />
-                      <span>Decline</span>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveChatBooking(request)}
+                        className="bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white py-2 px-3 rounded-xl font-bold text-xs transition shadow-xs flex items-center justify-center space-x-1.5 cursor-pointer"
+                      >
+                        <MessageSquare className="h-3.5 w-3.5" />
+                        <span>Message</span>
+                      </button>
+                    </div>
+
+                    {/* LARGE ACCEPT AND DECLINE BUTTONS */}
+                    <div className="grid grid-cols-2 gap-2.5 pt-1">
+                      <button
+                        onClick={() => handleAcceptRequest(request)}
+                        className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white py-3 px-3 rounded-2xl font-bold text-sm transition shadow-md shadow-emerald-600/20 flex items-center justify-center space-x-1.5 cursor-pointer"
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                        <span>Accept</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleDeclineRequest(request)}
+                        className="bg-white hover:bg-red-50 hover:text-red-600 border-2 border-slate-200 hover:border-red-300 text-slate-700 active:scale-[0.98] py-3 px-3 rounded-2xl font-bold text-sm transition flex items-center justify-center space-x-1.5 cursor-pointer"
+                      >
+                        <XCircle className="h-4 w-4" />
+                        <span>Decline</span>
+                      </button>
+                    </div>
                   </div>
 
                 </div>
@@ -694,13 +728,36 @@ export default function ProviderDashboard() {
                     <span className="font-extrabold text-base text-slate-900">₹{job.price}</span>
                   </div>
 
-                  <button
-                    onClick={() => handleCompleteJob(job)}
-                    className="w-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center space-x-2 cursor-pointer"
-                  >
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                    <span>Mark as Completed & Collect ₹{job.price}</span>
-                  </button>
+                  {/* Actions: Call & Message + Mark Completed */}
+                  <div className="space-y-2 pt-2 border-t border-slate-100">
+                    <div className="grid grid-cols-2 gap-2">
+                      <a
+                        href={`tel:${job.customerPhone || '+91 98765 43210'}`}
+                        title={`Call Customer: ${job.customerPhone || '+91 98765 43210'}`}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white py-1.5 px-3 rounded-xl font-bold text-xs transition flex items-center justify-center space-x-1 cursor-pointer"
+                      >
+                        <Phone className="h-3 w-3" />
+                        <span>Call Customer</span>
+                      </a>
+
+                      <button
+                        type="button"
+                        onClick={() => setActiveChatBooking(job)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white py-1.5 px-3 rounded-xl font-bold text-xs transition flex items-center justify-center space-x-1 cursor-pointer"
+                      >
+                        <MessageSquare className="h-3 w-3" />
+                        <span>Message</span>
+                      </button>
+                    </div>
+
+                    <button
+                      onClick={() => handleCompleteJob(job)}
+                      className="w-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center space-x-2 cursor-pointer"
+                    >
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                      <span>Mark as Completed & Collect ₹{job.price}</span>
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -720,6 +777,15 @@ export default function ProviderDashboard() {
             <XCircle className="h-4 w-4" />
           </button>
         </div>
+      )}
+
+      {/* REAL-TIME BOOKING CHAT MODAL */}
+      {activeChatBooking && (
+        <BookingChatModal
+          booking={activeChatBooking}
+          currentUser={user}
+          onClose={() => setActiveChatBooking(null)}
+        />
       )}
 
       {/* FOOTER */}

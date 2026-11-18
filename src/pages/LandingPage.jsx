@@ -150,10 +150,10 @@ export default function LandingPage() {
       const profileData = {
         name: name.trim(),
         role: selectedRole,
+        phone: phone.trim() || '9876543210',
         ...(selectedRole === 'provider' ? {
           serviceCategory,
           price: Number(price),
-          phone: phone.trim(),
           lat: Number(coordinates.lat) || 17.385044,
           lng: Number(coordinates.lng) || 78.486671,
           address: address.trim() || 'Service Base Location'
@@ -441,6 +441,24 @@ export default function LandingPage() {
                 />
               </div>
 
+              {/* Common Field: Phone Number (for both Customer and Provider) */}
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-600 mb-1">
+                  Phone Number
+                </label>
+                <div className="relative">
+                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
+                  <input
+                    type="tel"
+                    required
+                    placeholder="9876543210"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                  />
+                </div>
+              </div>
+
               {/* SERVICE PROVIDER EXTRA FIELDS */}
               {selectedRole === 'provider' && (
                 <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-2xl space-y-3.5 animate-in fade-in zoom-in-98 duration-150">
@@ -467,44 +485,25 @@ export default function LandingPage() {
                     </select>
                   </div>
 
-                  {/* Price per visit & Phone Number */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Price per visit (₹)
-                      </label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">
-                          ₹
-                        </span>
-                        <input
-                          type="number"
-                          required
-                          min={100}
-                          step={50}
-                          placeholder="500"
-                          value={price}
-                          onChange={(e) => setPrice(e.target.value)}
-                          className="w-full pl-7 pr-3 py-2 text-sm bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Phone Number
-                      </label>
-                      <div className="relative">
-                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-3.5 w-3.5" />
-                        <input
-                          type="tel"
-                          required
-                          placeholder="9876543210"
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
-                          className="w-full pl-8 pr-3 py-2 text-sm bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
-                        />
-                      </div>
+                  {/* Price per visit */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Price per visit (₹)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">
+                        ₹
+                      </span>
+                      <input
+                        type="number"
+                        required
+                        min={100}
+                        step={50}
+                        placeholder="500"
+                        value={price}
+                        onChange={(e) => setPrice(e.target.value)}
+                        className="w-full pl-7 pr-3 py-2 text-sm bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
+                      />
                     </div>
                   </div>
 

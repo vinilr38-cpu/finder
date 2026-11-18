@@ -5,7 +5,7 @@ import {
   Wrench, Zap, Sparkles, Hammer, 
   CheckCircle2, X, ChevronRight, User as UserIcon,
   Crosshair, Loader2, Phone, AlertCircle, Radio, Wind,
-  Bookmark, XCircle
+  Bookmark, XCircle, MessageSquare
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
@@ -22,6 +22,7 @@ import {
   updateDoc
 } from 'firebase/firestore';
 import AddressSearchBar from '../components/AddressSearchBar';
+import BookingChatModal from '../components/BookingChatModal';
 
 // Customer Center Coordinates (Hyderabad)
 const CUSTOMER_LOCATION = {
@@ -196,10 +197,11 @@ export default function CustomerDashboard() {
   const [selectedProvider, setSelectedProvider] = useState(null);
   const [mapTarget, setMapTarget] = useState(null);
 
-  // Booking modal states
+  // Booking modal & Real-time chat states
   const [activeBookingProvider, setActiveBookingProvider] = useState(null);
   const [isSubmittingBooking, setIsSubmittingBooking] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(null);
+  const [activeChatBooking, setActiveChatBooking] = useState(null);
 
   // Form states for booking modal
   const [serviceDate, setServiceDate] = useState('');
@@ -415,8 +417,10 @@ export default function CustomerDashboard() {
     const bookingPayload = {
       customerId: currentUid,
       customerName: currentName,
+      customerPhone: user?.phone || user?.phoneNumber || '+91 98765 43210',
       providerId: activeBookingProvider.uid || activeBookingProvider.id,
       providerName: activeBookingProvider.name,
+      providerPhone: activeBookingProvider.phone || '+91 98765 12345',
       serviceCategory: activeBookingProvider.serviceCategory || activeBookingProvider.role || 'Service',
       price: Number(activeBookingProvider.price) || 500,
       status: 'pending', // Required: status 'pending'
@@ -853,12 +857,42 @@ export default function CustomerDashboard() {
                         )}
                       </div>
 
-                      {/* Bottom: Price */}
-                      <div className="flex justify-between items-center pt-1 border-t border-slate-100 text-xs">
-                        <span className="text-slate-400">Total Rate:</span>
-                        <span className="font-extrabold text-slate-900 text-base">
-                          ₹{booking.price}
-                        </span>
+                      {/* Bottom: Price, Call & Message Buttons */}
+                      <div className="pt-2 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                        <div>
+                          <span className="text-slate-400 block text-[11px]">Total Rate:</span>
+                          <span className="font-extrabold text-slate-900 text-base">
+                            ₹{booking.price}
+                          </span>
+                        </div>
+
+                        {/* Real-time Call and Message Options */}
+                        <div className="flex items-center space-x-2">
+                          {/* Call Button (<a href={`tel:${phoneNumber}`}>) */}
+                          <a
+                            href={`tel:${booking.providerPhone || '+91 98765 12345'}`}
+                            title={`Call Provider: ${booking.providerPhone || '+91 98765 12345'}`}
+                            className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white px-3 py-1.5 rounded-xl font-bold transition shadow-xs flex items-center space-x-1 cursor-pointer"
+                          >
+                            <Phone className="h-3.5 w-3.5" />
+                            <span>Call</span>
+                            {booking.providerPhone && (
+                              <span className="text-[10px] opacity-85 hidden xl:inline ml-0.5 font-normal">
+                                ({booking.providerPhone})
+                              </span>
+                            )}
+                          </a>
+
+                          {/* Message Button (Opens BookingChatModal) */}
+                          <button
+                            type="button"
+                            onClick={() => setActiveChatBooking(booking)}
+                            className="bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white px-3 py-1.5 rounded-xl font-bold transition shadow-xs flex items-center space-x-1 cursor-pointer"
+                          >
+                            <MessageSquare className="h-3.5 w-3.5" />
+                            <span>Message</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))
@@ -1206,6 +1240,15 @@ export default function CustomerDashboard() {
             <X className="h-4 w-4" />
           </button>
         </div>
+      )}
+
+      {/* 5. REAL-TIME BOOKING CHAT MODAL */}
+      {activeChatBooking && (
+        <BookingChatModal
+          booking={activeChatBooking}
+          currentUser={user}
+          onClose={() => setActiveChatBooking(null)}
+        />
       )}
 
     </div>
