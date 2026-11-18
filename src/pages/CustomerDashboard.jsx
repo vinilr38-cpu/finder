@@ -7,7 +7,7 @@ import {
   Crosshair, Loader2, Phone, AlertCircle, Radio, Wind,
   Bookmark, XCircle
 } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
@@ -17,7 +17,9 @@ import {
   where, 
   onSnapshot, 
   addDoc,
-  serverTimestamp 
+  serverTimestamp,
+  doc,
+  updateDoc
 } from 'firebase/firestore';
 
 // Customer Center Coordinates (Hyderabad)
@@ -43,11 +45,14 @@ function calculateDistanceKm(lat1, lon1, lat2, lon2) {
 }
 
 // Disperse markers with default coordinates so pins don't overlap completely
-function getDispersedCoords(provider, index, total) {
-  let lat = Number(provider.lat) || CUSTOMER_LOCATION.lat;
-  let lng = Number(provider.lng) || CUSTOMER_LOCATION.lng;
+function getDispersedCoords(provider, index, total, baseCoords = CUSTOMER_LOCATION) {
+  let lat = Number(provider.lat) || (baseCoords?.lat || CUSTOMER_LOCATION.lat);
+  let lng = Number(provider.lng) || (baseCoords?.lng || CUSTOMER_LOCATION.lng);
 
-  if (Math.abs(lat - CUSTOMER_LOCATION.lat) < 0.0001 && Math.abs(lng - CUSTOMER_LOCATION.lng) < 0.0001) {
+  const refLat = baseCoords?.lat || CUSTOMER_LOCATION.lat;
+  const refLng = baseCoords?.lng || CUSTOMER_LOCATION.lng;
+
+  if (Math.abs(lat - refLat) < 0.0001 && Math.abs(lng - refLng) < 0.0001) {
     const angle = (index * 2 * Math.PI) / (total || 1);
     const radius = 0.004 + (index % 3) * 0.0025; // ~400m - 900m offset
     lat += Math.cos(angle) * radius;
@@ -129,9 +134,45 @@ function MapRecenter({ targetCoords }) {
   return null;
 }
 
+// Map Click Listener to move customer pin anywhere on click
+function CustomerMapClickWatcher({ onLocationSelect }) {
+  useMapEvents({
+    click(e) {
+      if (e?.latlng) {
+        onLocationSelect({
+          lat: Number(e.latlng.lat.toFixed(6)),
+          lng: Number(e.latlng.lng.toFixed(6))
+        });
+      }
+    },
+  });
+  return null;
+}
+
 export default function CustomerDashboard() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  // Customer Dynamic Location (Hyderabad default or user profile coords)
+  const [customerCoords, setCustomerCoords] = useState({
+    lat: Number(user?.lat) || CUSTOMER_LOCATION.lat,
+    lng: Number(user?.lng) || CUSTOMER_LOCATION.lng,
+    address: user?.address || CUSTOMER_LOCATION.address
+  });
+  const [hasMovedLocation, setHasMovedLocation] = useState(false);
+  const [isSavingCustomerLoc, setIsSavingCustomerLoc] = useState(false);
+  const [locationSavedAlert, setLocationSavedAlert] = useState(false);
+
+  // Sync with user profile once loaded
+  useEffect(() => {
+    if (user?.lat && user?.lng) {
+      setCustomerCoords(prev => ({
+        ...prev,
+        lat: Number(user.lat),
+        lng: Number(user.lng)
+      }));
+    }
+  }, [user?.lat, user?.lng]);
 
   // Left Column View: 'providers' | 'bookings'
   const [activeLeftTab, setActiveLeftTab] = useState('providers');
@@ -163,6 +204,37 @@ export default function CustomerDashboard() {
   const handleLogout = async () => {
     await logout();
     navigate('/');
+  };
+
+  // Handle customer pin reposition (via dragend or map click)
+  const handleCustomerLocationChange = (coords) => {
+    setCustomerCoords(prev => ({
+      ...prev,
+      lat: coords.lat,
+      lng: coords.lng
+    }));
+    setHasMovedLocation(true);
+  };
+
+  // Confirm and save coordinates to Firestore
+  const handleConfirmCustomerLocation = async () => {
+    const currentUid = user?.uid || user?.id;
+    if (!currentUid) return;
+
+    setIsSavingCustomerLoc(true);
+    try {
+      await updateDoc(doc(db, 'users', currentUid), {
+        lat: customerCoords.lat,
+        lng: customerCoords.lng
+      });
+      setHasMovedLocation(false);
+      setLocationSavedAlert(true);
+      setTimeout(() => setLocationSavedAlert(false), 3500);
+    } catch (err) {
+      console.warn('Could not save customer location in Firestore:', err.message);
+    } finally {
+      setIsSavingCustomerLoc(false);
+    }
   };
 
   // 1. FIRESTORE onSnapshot: Query users collection where role == 'provider' and isOnline == true
@@ -334,12 +406,27 @@ export default function CustomerDashboard() {
       createdMillis: Date.now(),
       date: serviceDate || 'Tomorrow',
       time: serviceTime,
-      address: serviceAddress || CUSTOMER_LOCATION.address,
+      address: serviceAddress || customerCoords.address || CUSTOMER_LOCATION.address,
+      customerLat: Number(customerCoords.lat),
+      customerLng: Number(customerCoords.lng),
     };
 
     try {
       const docRef = await addDoc(collection(db, 'bookings'), bookingPayload);
       console.log('Booking written to Firestore with ID:', docRef.id);
+
+      // Save customer coordinates to Firestore users/{uid} when confirming
+      if (currentUid && currentUid !== 'cust_101') {
+        try {
+          await updateDoc(doc(db, 'users', currentUid), {
+            lat: customerCoords.lat,
+            lng: customerCoords.lng
+          });
+          setHasMovedLocation(false);
+        } catch (e) {
+          console.warn('Could not update user coordinates on booking confirmation:', e.message);
+        }
+      }
     } catch (err) {
       console.warn('Firestore write warning:', err.message);
     } finally {
@@ -570,8 +657,8 @@ export default function CustomerDashboard() {
                   /* Real Provider Cards */
                   filteredProviders.map((provider, idx) => {
                     const isSelected = selectedProvider?.id === provider.id;
-                    const coords = getDispersedCoords(provider, idx, filteredProviders.length);
-                    const distanceKm = calculateDistanceKm(CUSTOMER_LOCATION.lat, CUSTOMER_LOCATION.lng, coords[0], coords[1]);
+                    const coords = getDispersedCoords(provider, idx, filteredProviders.length, customerCoords);
+                    const distanceKm = calculateDistanceKm(customerCoords.lat, customerCoords.lng, coords[0], coords[1]);
 
                     return (
                       <div
@@ -766,8 +853,47 @@ export default function CustomerDashboard() {
         {/* RIGHT COLUMN: Interactive Leaflet Map with Real Provider Pins */}
         <div className="w-full lg:w-1/2 xl:w-7/12 h-[380px] lg:h-full relative bg-slate-200">
           
+          {/* HELPER LABEL FLOATING AT TOP OF MAP */}
+          <div className="absolute top-4 left-4 z-[999] max-w-sm pointer-events-auto space-y-2">
+            <div className="bg-white/95 backdrop-blur-xs px-3.5 py-2 rounded-2xl shadow-lg border border-slate-200 text-xs text-slate-800 flex items-center space-x-2">
+              <MapPin className="h-4 w-4 text-blue-600 shrink-0" />
+              <span className="font-semibold text-slate-700">
+                Location not exact? Click or drag the pin to your exact spot.
+              </span>
+            </div>
+
+            {/* Confirm Spot Button shown when user moves their pin */}
+            {hasMovedLocation && (
+              <div className="bg-emerald-600 text-white px-3.5 py-2 rounded-2xl shadow-lg flex items-center justify-between text-xs animate-in fade-in slide-in-from-top-2">
+                <span className="font-semibold">New spot chosen!</span>
+                <button
+                  type="button"
+                  onClick={handleConfirmCustomerLocation}
+                  disabled={isSavingCustomerLoc}
+                  className="ml-3 bg-white text-emerald-800 hover:bg-emerald-50 px-2.5 py-1 rounded-xl font-bold text-xs transition cursor-pointer shadow-xs flex items-center space-x-1"
+                >
+                  {isSavingCustomerLoc ? (
+                    <>
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <span>Confirm & Save</span>
+                  )}
+                </button>
+              </div>
+            )}
+
+            {locationSavedAlert && (
+              <div className="bg-emerald-100 border border-emerald-300 text-emerald-900 px-3 py-1.5 rounded-xl shadow-md text-xs font-bold flex items-center space-x-1.5 animate-in fade-in">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                <span>Exact location saved to Firestore!</span>
+              </div>
+            )}
+          </div>
+
           <MapContainer
-            center={[CUSTOMER_LOCATION.lat, CUSTOMER_LOCATION.lng]}
+            center={[customerCoords.lat, customerCoords.lng]}
             zoom={14}
             scrollWheelZoom={true}
             style={{ height: '100%', width: '100%', zIndex: 1 }}
@@ -780,18 +906,36 @@ export default function CustomerDashboard() {
             {/* Recenter handler */}
             <MapRecenter targetCoords={mapTarget} />
 
-            {/* CUSTOMER PIN (You) */}
-            <Marker position={[CUSTOMER_LOCATION.lat, CUSTOMER_LOCATION.lng]} icon={customerIcon}>
+            {/* Click anywhere on map to move customer pin */}
+            <CustomerMapClickWatcher onLocationSelect={handleCustomerLocationChange} />
+
+            {/* CUSTOMER PIN (You) - Draggable with dragend handler */}
+            <Marker
+              position={[customerCoords.lat, customerCoords.lng]}
+              icon={customerIcon}
+              draggable={true}
+              eventHandlers={{
+                dragend: (e) => {
+                  if (e?.target?.getLatLng) {
+                    const latlng = e.target.getLatLng();
+                    handleCustomerLocationChange({
+                      lat: Number(latlng.lat.toFixed(6)),
+                      lng: Number(latlng.lng.toFixed(6))
+                    });
+                  }
+                }
+              }}
+            >
               <Popup>
                 <div className="p-1 text-slate-800">
                   <div className="flex items-center space-x-1.5 text-blue-700 font-bold text-xs uppercase tracking-wider mb-1">
                     <span>📍 Your Location (Customer)</span>
                   </div>
-                  <p className="text-xs text-slate-600 font-medium leading-tight">
-                    {CUSTOMER_LOCATION.address}
+                  <p className="text-xs text-slate-600 font-mono">
+                    Lat: {customerCoords.lat.toFixed(5)}, Lng: {customerCoords.lng.toFixed(5)}
                   </p>
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    All provider distances calculated from here.
+                  <p className="text-[11px] text-emerald-600 mt-1 font-semibold">
+                    Drag pin or click map to move your spot
                   </p>
                 </div>
               </Popup>
@@ -799,8 +943,8 @@ export default function CustomerDashboard() {
 
             {/* REAL FIRESTORE PROVIDER PINS */}
             {filteredProviders.map((provider, idx) => {
-              const coords = getDispersedCoords(provider, idx, filteredProviders.length);
-              const distanceKm = calculateDistanceKm(CUSTOMER_LOCATION.lat, CUSTOMER_LOCATION.lng, coords[0], coords[1]);
+              const coords = getDispersedCoords(provider, idx, filteredProviders.length, customerCoords);
+              const distanceKm = calculateDistanceKm(customerCoords.lat, customerCoords.lng, coords[0], coords[1]);
 
               return (
                 <Marker

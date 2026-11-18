@@ -6,6 +6,7 @@ import {
   CheckCircle2, AlertCircle, Loader2, Sparkles, Phone, 
   MapPin, Crosshair, RefreshCw, Edit3
 } from 'lucide-react';
+import DraggableLocationPicker from '../components/DraggableLocationPicker';
 
 export default function LandingPage() {
   const { user, role, loading: authLoading, signup, login } = useAuth();
@@ -503,130 +504,99 @@ export default function LandingPage() {
                     </div>
                   </div>
 
-                  {/* GEOLOCATION: DETECT MY CURRENT LOCATION */}
-                  <div className="pt-1 space-y-2 border-t border-emerald-200/60">
-                    <label className="block text-xs font-semibold text-slate-700">
-                      Service Base Location (Map Pin)
-                    </label>
-
-                    {/* Location Captured Badge */}
-                    {locationCaptured ? (
-                      <div className="bg-emerald-100/90 border border-emerald-300 text-emerald-900 p-3 rounded-xl flex items-center justify-between shadow-xs">
-                        <div className="flex items-center space-x-2">
-                          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                          <div>
-                            <span className="font-extrabold text-xs block">Location Captured</span>
-                            <span className="text-[11px] font-mono text-emerald-700">
-                              Lat: {coordinates.lat.toFixed(5)}, Lng: {coordinates.lng.toFixed(5)}
-                            </span>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={handleDetectLocation}
-                          disabled={isDetectingLocation}
-                          className="text-xs font-bold text-emerald-700 hover:text-emerald-900 underline cursor-pointer ml-2"
-                        >
-                          Re-detect
-                        </button>
-                      </div>
-                    ) : (
-                      /* Detect Location Button */
-                      <button
-                        type="button"
-                        onClick={handleDetectLocation}
-                        disabled={isDetectingLocation}
-                        className="w-full bg-white hover:bg-emerald-50 border-2 border-emerald-300 hover:border-emerald-400 text-emerald-800 text-xs font-bold py-2.5 px-3 rounded-xl transition flex items-center justify-center space-x-2 shadow-xs cursor-pointer"
-                      >
-                        {isDetectingLocation ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
-                            <span>Detecting GPS coordinates...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Crosshair className="h-4 w-4 text-emerald-600" />
-                            <span>Detect My Current Location</span>
-                          </>
-                        )}
-                      </button>
-                    )}
+                  {/* GEOLOCATION & INTERACTIVE MAP LOCATION PICKER */}
+                  <div className="pt-2 space-y-2.5 border-t border-emerald-200/60">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-semibold text-slate-700">
+                        Service Base Location (Map Pin)
+                      </label>
+                      {locationCaptured && (
+                        <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100/90 border border-emerald-300 px-2 py-0.5 rounded-full flex items-center">
+                          <CheckCircle2 className="h-3 w-3 mr-1 text-emerald-600" />
+                          Pin Placed
+                        </span>
+                      )}
+                    </div>
 
                     {/* Geolocation Error Message Banner */}
                     {locationError && (
-                      <div className="p-3 bg-red-50 border border-red-200 rounded-xl space-y-2">
+                      <div className="p-2.5 bg-red-50 border border-red-200 rounded-xl space-y-1.5">
                         <div className="flex items-start space-x-2 text-xs text-red-700">
                           <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
                           <span>{locationError}</span>
                         </div>
-                        <div className="flex items-center space-x-2 pt-1 text-xs">
+                        <div className="flex items-center space-x-2 text-xs">
                           <button
                             type="button"
                             onClick={handleDetectLocation}
                             className="bg-red-100 hover:bg-red-200 text-red-800 px-2.5 py-1 rounded-lg font-bold transition cursor-pointer flex items-center space-x-1"
                           >
                             <RefreshCw className="h-3 w-3" />
-                            <span>Retry</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setIsManualLocation(true)}
-                            className="bg-white border border-red-200 text-red-700 hover:bg-red-50 px-2.5 py-1 rounded-lg font-medium transition cursor-pointer flex items-center space-x-1"
-                          >
-                            <Edit3 className="h-3 w-3" />
-                            <span>Enter Manually</span>
+                            <span>Retry GPS</span>
                           </button>
                         </div>
                       </div>
                     )}
 
-                    {/* Fallback Manual Coordinates Input */}
-                    {(isManualLocation || (!locationCaptured && !locationError)) && (
-                      <div className="pt-1">
-                        <button
-                          type="button"
-                          onClick={() => setIsManualLocation(!isManualLocation)}
-                          className="text-[11px] text-slate-500 hover:text-emerald-700 font-medium underline cursor-pointer"
-                        >
-                          {isManualLocation ? 'Hide manual coordinates' : 'Or enter coordinates manually'}
-                        </button>
+                    {/* INTERACTIVE DRAGGABLE LEAFLET MAP */}
+                    <DraggableLocationPicker
+                      coords={coordinates}
+                      onChange={(newCoords) => {
+                        setCoordinates(newCoords);
+                        setLocationCaptured(true);
+                      }}
+                      onDetectCurrentLocation={handleDetectLocation}
+                      isDetecting={isDetectingLocation}
+                      role="provider"
+                      height="210px"
+                      helperText="Location not exact? Click or drag the pin to your exact spot."
+                    />
 
-                        {isManualLocation && (
-                          <div className="mt-2 grid grid-cols-2 gap-2 bg-white p-2.5 rounded-xl border border-slate-200">
-                            <div>
-                              <label className="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">
-                                Latitude
-                              </label>
-                              <input
-                                type="number"
-                                step="0.000001"
-                                value={coordinates.lat}
-                                onChange={(e) => {
-                                  setCoordinates(prev => ({ ...prev, lat: Number(e.target.value) }));
-                                  setLocationCaptured(true);
-                                }}
-                                className="w-full px-2 py-1 text-xs border border-slate-300 rounded-lg outline-none font-mono"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">
-                                Longitude
-                              </label>
-                              <input
-                                type="number"
-                                step="0.000001"
-                                value={coordinates.lng}
-                                onChange={(e) => {
-                                  setCoordinates(prev => ({ ...prev, lng: Number(e.target.value) }));
-                                  setLocationCaptured(true);
-                                }}
-                                className="w-full px-2 py-1 text-xs border border-slate-300 rounded-lg outline-none font-mono"
-                              />
-                            </div>
+                    {/* Manual Coordinates Toggle (Collapsible) */}
+                    <div className="pt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setIsManualLocation(!isManualLocation)}
+                        className="text-[11px] text-slate-500 hover:text-emerald-700 font-medium underline cursor-pointer"
+                      >
+                        {isManualLocation ? 'Hide manual coordinate inputs' : 'Fine-tune coordinates manually'}
+                      </button>
+
+                      {isManualLocation && (
+                        <div className="mt-2 grid grid-cols-2 gap-2 bg-white p-2.5 rounded-xl border border-slate-200">
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">
+                              Latitude
+                            </label>
+                            <input
+                              type="number"
+                              step="0.000001"
+                              value={coordinates.lat}
+                              onChange={(e) => {
+                                setCoordinates(prev => ({ ...prev, lat: Number(e.target.value) }));
+                                setLocationCaptured(true);
+                              }}
+                              className="w-full px-2 py-1 text-xs border border-slate-300 rounded-lg outline-none font-mono"
+                            />
                           </div>
-                        )}
-                      </div>
-                    )}
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-500 uppercase block mb-0.5">
+                              Longitude
+                            </label>
+                            <input
+                              type="number"
+                              step="0.000001"
+                              value={coordinates.lng}
+                              onChange={(e) => {
+                                setCoordinates(prev => ({ ...prev, lng: Number(e.target.value) }));
+                                setLocationCaptured(true);
+                              }}
+                              className="w-full px-2 py-1 text-xs border border-slate-300 rounded-lg outline-none font-mono"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                 </div>

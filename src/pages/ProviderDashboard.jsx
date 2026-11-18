@@ -4,7 +4,7 @@ import {
   LogOut, Wrench, DollarSign, CheckCircle2, 
   MapPin, Bell, XCircle, Briefcase, 
   User, Radio, Calendar, Clock, Loader2, Sparkles,
-  Crosshair, RefreshCw
+  Crosshair, RefreshCw, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
@@ -16,6 +16,7 @@ import {
   doc, 
   updateDoc 
 } from 'firebase/firestore';
+import DraggableLocationPicker from '../components/DraggableLocationPicker';
 
 // Helper to format Firestore serverTimestamp
 function formatRequestTime(timestamp, createdMillis) {
@@ -36,8 +37,10 @@ export default function ProviderDashboard() {
   const [isOnline, setIsOnline] = useState(() => user?.isOnline !== false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
-  // Geolocation update state
+  // Geolocation & Interactive Map states
   const [isUpdatingLocation, setIsUpdatingLocation] = useState(false);
+  const [isSavingLocation, setIsSavingLocation] = useState(false);
+  const [showLocationMap, setShowLocationMap] = useState(true);
   const [providerCoords, setProviderCoords] = useState({
     lat: Number(user?.lat) || 17.385044,
     lng: Number(user?.lng) || 78.486671
@@ -92,8 +95,30 @@ export default function ProviderDashboard() {
     }
   };
 
-  // 2. UPDATE MY LOCATION: Runs geolocation check and updates lat/lng in Firestore users/{uid}
+  // 2. CONFIRM & SAVE LOCATION: Saves exact lat/lng to Firestore users/{uid}
+  const handleConfirmLocation = async (coordsToSave) => {
+    const coords = coordsToSave || providerCoords;
+    const currentUid = user?.uid || user?.id;
+    if (!currentUid) return;
+
+    setIsSavingLocation(true);
+    try {
+      await updateDoc(doc(db, 'users', currentUid), {
+        lat: Number(coords.lat),
+        lng: Number(coords.lng)
+      });
+      setNotification(`📍 Exact location confirmed and saved to Firestore! Coordinates: [${Number(coords.lat).toFixed(5)}, ${Number(coords.lng).toFixed(5)}]`);
+    } catch (err) {
+      console.error('Error saving coordinates to Firestore:', err);
+      alert('Failed to update coordinates in Firestore: ' + err.message);
+    } finally {
+      setIsSavingLocation(false);
+    }
+  };
+
+  // 3. UPDATE MY LOCATION: Runs geolocation check and updates lat/lng in Firestore users/{uid}
   const handleUpdateLocation = () => {
+    setShowLocationMap(true);
     if (!navigator.geolocation) {
       alert('Geolocation is not supported by your browser.');
       return;
@@ -104,16 +129,20 @@ export default function ProviderDashboard() {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
-        setProviderCoords({ lat: latitude, lng: longitude });
+        const newCoords = {
+          lat: Number(latitude.toFixed(6)),
+          lng: Number(longitude.toFixed(6))
+        };
+        setProviderCoords(newCoords);
 
         const currentUid = user?.uid || user?.id;
         if (currentUid) {
           try {
             await updateDoc(doc(db, 'users', currentUid), {
-              lat: latitude,
-              lng: longitude
+              lat: newCoords.lat,
+              lng: newCoords.lng
             });
-            setNotification(`📍 Coordinates updated to [${latitude.toFixed(5)}, ${longitude.toFixed(5)}] in Firestore! Customers will see your updated map pin.`);
+            setNotification(`📍 GPS coordinates updated to [${newCoords.lat.toFixed(5)}, ${newCoords.lng.toFixed(5)}] in Firestore! Customers will see your updated map pin.`);
           } catch (err) {
             console.error('Error saving coordinates to Firestore:', err);
             alert('Failed to update coordinates in Firestore: ' + err.message);
@@ -400,6 +429,56 @@ export default function ProviderDashboard() {
             </div>
 
           </div>
+        </div>
+
+        {/* INTERACTIVE LOCATION PICKER (Draggable pin & Click to Move) */}
+        <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center space-x-3">
+              <div className="bg-emerald-100 text-emerald-700 p-2.5 rounded-2xl">
+                <MapPin className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-slate-900 text-lg leading-tight">
+                  Service Base Location & Map Pin
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Customers view your distance and map pin from this exact spot.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={() => setShowLocationMap(!showLocationMap)}
+                className="text-xs font-bold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-3.5 py-1.5 rounded-xl transition cursor-pointer flex items-center space-x-1"
+              >
+                <span>{showLocationMap ? 'Hide Map' : 'Adjust Pin on Map'}</span>
+                {showLocationMap ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </button>
+            </div>
+          </div>
+
+          {showLocationMap && (
+            <div className="pt-1 animate-in fade-in duration-150">
+              <DraggableLocationPicker
+                coords={providerCoords}
+                onChange={(newCoords) => {
+                  setProviderCoords(newCoords);
+                }}
+                onConfirm={handleConfirmLocation}
+                showConfirmButton={true}
+                confirmButtonText="Confirm & Save Spot to Firestore"
+                isSaving={isSavingLocation}
+                onDetectCurrentLocation={handleUpdateLocation}
+                isDetecting={isUpdatingLocation}
+                role="provider"
+                height="270px"
+                helperText="Location not exact? Click or drag the pin to your exact spot."
+              />
+            </div>
+          )}
         </div>
 
         {/* METRICS ROW */}
