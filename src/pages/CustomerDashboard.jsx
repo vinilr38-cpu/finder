@@ -5,7 +5,7 @@ import {
   Wrench, Zap, Sparkles, Hammer,
   CheckCircle2, X, ChevronRight, User as UserIcon,
   Crosshair, Loader2, Phone, AlertCircle, Radio, Wind,
-  Bookmark, XCircle, MessageSquare, Star
+  Bookmark, XCircle, MessageSquare, Star, ArrowUpDown
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
@@ -34,20 +34,35 @@ const CUSTOMER_LOCATION = {
   address: "Road No. 1, Banjara Hills, Hyderabad"
 };
 
-// Calculate real distance between two lat/lng coordinates in km
-function calculateDistanceKm(lat1, lon1, lat2, lon2) {
-  if (!lat1 || !lon1 || !lat2 || !lon2) return 1.2;
-  const R = 6371; // Earth's radius in km
-  const dLat = (lat2 - lat1) * (Math.PI / 180);
-  const dLon = (lon2 - lon1) * (Math.PI / 180);
+// Haversine formula helper function that returns the distance in kilometers rounded to 1 decimal place
+export function getDistanceKm(lat1, lng1, lat2, lng2) {
+  if (
+    lat1 === undefined || lat1 === null || lng1 === undefined || lng1 === null ||
+    lat2 === undefined || lat2 === null || lng2 === undefined || lng2 === null
+  ) {
+    return 0;
+  }
+  const p1 = Number(lat1);
+  const l1 = Number(lng1);
+  const p2 = Number(lat2);
+  const l2 = Number(lng2);
+
+  if (isNaN(p1) || isNaN(l1) || isNaN(p2) || isNaN(l2)) return 0;
+
+  const R = 6371; // Earth's radius in kilometers
+  const dLat = (p2 - p1) * (Math.PI / 180);
+  const dLng = (l2 - l1) * (Math.PI / 180);
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    Math.cos(p1 * (Math.PI / 180)) * Math.cos(p2 * (Math.PI / 180)) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   const dist = R * c;
-  return dist < 0.2 ? 0.8 : Number(dist.toFixed(1));
+  return Number(dist.toFixed(1));
 }
+
+// Backwards compatibility alias
+export const calculateDistanceKm = getDistanceKm;
 
 // Disperse markers with default coordinates so pins don't overlap completely
 function getDispersedCoords(provider, index, total, baseCoords = CUSTOMER_LOCATION) {
@@ -194,11 +209,43 @@ export default function CustomerDashboard() {
   const [myBookings, setMyBookings] = useState([]);
   const [loadingBookings, setLoadingBookings] = useState(true);
 
-  // Filter & Search states
+  // Filter, Search, Distance Radius & Sort states
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [distanceFilter, setDistanceFilter] = useState('all'); // 'all' | '5' | '10'
+  const [sortBy, setSortBy] = useState('nearest'); // 'nearest' | 'highest_rated' | 'lowest_price'
+  const [isDetectingGPS, setIsDetectingGPS] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState(null);
   const [mapTarget, setMapTarget] = useState(null);
+
+  // Live GPS Detection via navigator.geolocation
+  const handleDetectCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser.');
+      return;
+    }
+    setIsDetectingGPS(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setIsDetectingGPS(false);
+        const lat = Number(position.coords.latitude.toFixed(6));
+        const lng = Number(position.coords.longitude.toFixed(6));
+        setCustomerCoords({
+          lat,
+          lng,
+          address: 'Current GPS Location'
+        });
+        setMapTarget({ lat, lng });
+        setHasMovedLocation(true);
+      },
+      (error) => {
+        setIsDetectingGPS(false);
+        console.warn('Geolocation error:', error);
+        alert('Could not detect GPS location: ' + (error.message || 'Permission denied or timeout.'));
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  };
 
   // Booking modal & Real-time chat & Review states
   const [activeBookingProvider, setActiveBookingProvider] = useState(null);
@@ -451,15 +498,49 @@ export default function CustomerDashboard() {
     { name: 'Carpenter', icon: Hammer },
   ];
 
-  // Filtered providers
-  const filteredProviders = providers.filter((p) => {
+  // 1. Calculate distance for every provider from customer's current lat/lng using Haversine formula
+  const providersWithDistance = providers.map((provider, idx) => {
+    const coords = getDispersedCoords(provider, idx, providers.length, customerCoords);
+    const distance = getDistanceKm(customerCoords.lat, customerCoords.lng, coords[0], coords[1]);
+    return {
+      ...provider,
+      dispersedCoords: coords,
+      distance
+    };
+  });
+
+  // 2. Filter providers by category, search query, and distance filter (All, Within 5 km, Within 10 km)
+  const filteredProviders = providersWithDistance.filter((p) => {
     const category = (p.serviceCategory || p.role || '').toLowerCase();
     const matchesCategory =
       selectedCategory === 'All' || category.includes(selectedCategory.toLowerCase());
     const matchesSearch =
       (p.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       category.includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
+
+    const matchesDistance =
+      distanceFilter === 'all' ||
+      (distanceFilter === '5' && p.distance <= 5.0) ||
+      (distanceFilter === '10' && p.distance <= 10.0);
+
+    return matchesCategory && matchesSearch && matchesDistance;
+  });
+
+  // 3. Sort providers: Nearest First, Highest Rated, Lowest Price
+  const sortedProviders = [...filteredProviders].sort((a, b) => {
+    if (sortBy === 'nearest') {
+      return a.distance - b.distance;
+    }
+    if (sortBy === 'highest_rated') {
+      const ratingA = Number(a.rating) || 0;
+      const ratingB = Number(b.rating) || 0;
+      if (ratingB !== ratingA) return ratingB - ratingA;
+      return (Number(b.reviewCount) || 0) - (Number(a.reviewCount) || 0);
+    }
+    if (sortBy === 'lowest_price') {
+      return (Number(a.price) || 0) - (Number(b.price) || 0);
+    }
+    return 0;
   });
 
   const handleFocusProvider = (provider, coords) => {
@@ -595,14 +676,30 @@ export default function CustomerDashboard() {
             <span>{providers.length} Provider{providers.length === 1 ? '' : 's'} Online</span>
           </div>
 
+          {/* Detect GPS Location Button */}
+          <button
+            type="button"
+            onClick={handleDetectCurrentLocation}
+            disabled={isDetectingGPS}
+            title="Detect current GPS location from your device"
+            className="flex items-center space-x-1.5 text-blue-700 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 text-xs font-bold rounded-xl border border-blue-200 transition cursor-pointer"
+          >
+            {isDetectingGPS ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-600" />
+            ) : (
+              <Crosshair className="h-3.5 w-3.5 text-blue-600" />
+            )}
+            <span className="hidden sm:inline">{isDetectingGPS ? 'Detecting GPS...' : 'Detect GPS'}</span>
+          </button>
+
           {/* Reset Map View Button */}
           <button
-            onClick={() => setMapTarget({ lat: CUSTOMER_LOCATION.lat, lng: CUSTOMER_LOCATION.lng })}
+            onClick={() => setMapTarget({ lat: customerCoords.lat, lng: customerCoords.lng })}
             title="Recenter on My Location"
             className="hidden md:flex items-center space-x-1 text-slate-600 hover:text-blue-600 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-200 hover:border-blue-300 transition cursor-pointer"
           >
-            <Crosshair className="h-3.5 w-3.5" />
-            <span>My Location</span>
+            <MapPin className="h-3.5 w-3.5" />
+            <span>My Spot</span>
           </button>
 
           {/* Logout Button */}
@@ -687,10 +784,64 @@ export default function CustomerDashboard() {
                   ))}
                 </div>
 
+                {/* SORT DROPDOWN AND DISTANCE FILTER ROW */}
+                <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-slate-100">
+                  {/* Distance Filter (All, Within 5 km, Within 10 km) */}
+                  <div className="flex items-center space-x-1.5">
+                    <span className="text-xs font-bold text-slate-600 flex items-center">
+                      <MapPin className="h-3.5 w-3.5 text-blue-600 mr-1 shrink-0" />
+                      Distance:
+                    </span>
+                    <div className="inline-flex rounded-xl bg-slate-100 p-0.5 border border-slate-200">
+                      {[
+                        { id: 'all', label: 'All' },
+                        { id: '5', label: 'Within 5 km' },
+                        { id: '10', label: 'Within 10 km' }
+                      ].map((dist) => (
+                        <button
+                          key={dist.id}
+                          type="button"
+                          onClick={() => setDistanceFilter(dist.id)}
+                          className={`px-2.5 py-1 text-xs font-bold rounded-lg transition cursor-pointer ${
+                            distanceFilter === dist.id
+                              ? 'bg-white text-blue-600 shadow-xs'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
+                        >
+                          {dist.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Sort Dropdown (Nearest First, Highest Rated, Lowest Price) */}
+                  <div className="flex items-center space-x-1.5">
+                    <label htmlFor="sort-by-select" className="text-xs font-bold text-slate-600 flex items-center">
+                      <ArrowUpDown className="h-3.5 w-3.5 text-blue-600 mr-1 shrink-0" />
+                      Sort:
+                    </label>
+                    <select
+                      id="sort-by-select"
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      className="text-xs font-bold bg-slate-100 hover:bg-slate-200/80 text-slate-800 py-1.5 px-3 rounded-xl border border-slate-200 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none cursor-pointer transition"
+                    >
+                      <option value="nearest">Nearest First</option>
+                      <option value="highest_rated">Highest Rated</option>
+                      <option value="lowest_price">Lowest Price</option>
+                    </select>
+                  </div>
+                </div>
+
                 {/* Live Count Bar */}
-                <div className="flex justify-between items-center text-xs text-slate-500 pt-0.5">
+                <div className="flex flex-wrap justify-between items-center text-xs text-slate-500 pt-0.5 gap-1">
                   <span>
-                    Showing <strong>{filteredProviders.length}</strong> of <strong>{providers.length}</strong> online provider{providers.length === 1 ? '' : 's'}
+                    Showing <strong>{sortedProviders.length}</strong> of <strong>{providers.length}</strong> online provider{providers.length === 1 ? '' : 's'}
+                    {distanceFilter !== 'all' && (
+                      <span className="text-blue-600 font-semibold ml-1">
+                        (within {distanceFilter} km)
+                      </span>
+                    )}
                   </span>
                   <span className="flex items-center text-emerald-600 font-semibold">
                     <span className="h-2 w-2 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>
@@ -729,24 +880,39 @@ export default function CustomerDashboard() {
                       </p>
                     </div>
                   </div>
-                ) : filteredProviders.length === 0 ? (
+                ) : sortedProviders.length === 0 ? (
                   /* Filter mismatch */
                   <div className="bg-white rounded-3xl border border-dashed border-slate-300 p-8 text-center space-y-3 shadow-xs">
                     <AlertCircle className="h-8 w-8 text-slate-400 mx-auto" />
-                    <p className="font-bold text-slate-800 text-base">No online providers in "{selectedCategory}"</p>
-                    <button
-                      onClick={() => setSelectedCategory('All')}
-                      className="text-xs font-bold text-blue-600 hover:underline cursor-pointer"
-                    >
-                      View All ({providers.length}) Online Providers
-                    </button>
+                    <p className="font-bold text-slate-800 text-base">No online providers matching your criteria</p>
+                    <p className="text-xs text-slate-500 max-w-xs mx-auto">
+                      Try increasing the distance radius or selecting a different service category.
+                    </p>
+                    <div className="flex justify-center space-x-2 pt-1">
+                      {distanceFilter !== 'all' && (
+                        <button
+                          onClick={() => setDistanceFilter('all')}
+                          className="text-xs font-bold text-blue-600 hover:underline cursor-pointer"
+                        >
+                          Reset distance filter
+                        </button>
+                      )}
+                      {selectedCategory !== 'All' && (
+                        <button
+                          onClick={() => setSelectedCategory('All')}
+                          className="text-xs font-bold text-blue-600 hover:underline cursor-pointer"
+                        >
+                          View all categories
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   /* Real Provider Cards */
-                  filteredProviders.map((provider, idx) => {
+                  sortedProviders.map((provider) => {
                     const isSelected = selectedProvider?.id === provider.id;
-                    const coords = getDispersedCoords(provider, idx, filteredProviders.length, customerCoords);
-                    const distanceKm = calculateDistanceKm(customerCoords.lat, customerCoords.lng, coords[0], coords[1]);
+                    const coords = provider.dispersedCoords;
+                    const distanceKm = provider.distance;
 
                     return (
                       <div
@@ -774,25 +940,32 @@ export default function CustomerDashboard() {
                               </span>
                             </div>
 
-                            {/* Live Rating or New Provider Badge */}
-                            <div className="flex items-center space-x-2 mt-1">
+                            {/* Live Rating and Clean Distance Badge */}
+                            <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                              {/* Clean Distance Badge */}
+                              <span className="inline-flex items-center space-x-1 bg-blue-50 text-blue-700 border border-blue-200/90 px-2.5 py-0.5 rounded-full text-xs font-extrabold shadow-2xs">
+                                <MapPin className="h-3 w-3 text-blue-600 shrink-0" />
+                                <span>{distanceKm} km away</span>
+                              </span>
+
+                              {/* Live Rating or New Provider Badge */}
                               {provider.reviewCount && provider.reviewCount > 0 ? (
-                                <div className="inline-flex items-center space-x-1 bg-amber-50 border border-amber-200/90 text-amber-900 px-2 py-0.5 rounded-md text-xs font-extrabold shadow-2xs">
+                                <div className="inline-flex items-center space-x-1 bg-amber-50 border border-amber-200/90 text-amber-900 px-2 py-0.5 rounded-full text-xs font-extrabold shadow-2xs">
                                   <Star className="h-3 w-3 fill-amber-400 text-amber-500" />
                                   <span>★ {Number(provider.rating || 5).toFixed(1)}</span>
-                                  <span className="text-slate-400 font-medium">
+                                  <span className="text-slate-400 font-medium text-[11px]">
                                     ({provider.reviewCount} review{provider.reviewCount === 1 ? '' : 's'})
                                   </span>
                                 </div>
                               ) : (
-                                <span className="inline-flex items-center bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-[10px] font-bold px-2 py-0.5 rounded-md">
+                                <span className="inline-flex items-center bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-[10px] font-bold px-2 py-0.5 rounded-full">
                                   <Sparkles className="h-2.5 w-2.5 mr-1 text-emerald-500" />
                                   New Provider
                                 </span>
                               )}
                             </div>
 
-                            <div className="flex items-center space-x-2 mt-0.5">
+                            <div className="flex items-center space-x-2 mt-1">
                               <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-md">
                                 {provider.serviceCategory || provider.role}
                               </span>
@@ -802,13 +975,6 @@ export default function CustomerDashboard() {
                                   {provider.phone}
                                 </span>
                               )}
-                            </div>
-
-                            <div className="flex items-center space-x-3 mt-2 text-xs text-slate-500">
-                              <span className="flex items-center">
-                                <MapPin className="h-3.5 w-3.5 text-slate-400 mr-1" />
-                                ~{distanceKm} km away
-                              </span>
                             </div>
                           </div>
                         </div>
@@ -1138,9 +1304,9 @@ export default function CustomerDashboard() {
             </Marker>
 
             {/* REAL FIRESTORE PROVIDER PINS */}
-            {filteredProviders.map((provider, idx) => {
-              const coords = getDispersedCoords(provider, idx, filteredProviders.length, customerCoords);
-              const distanceKm = calculateDistanceKm(customerCoords.lat, customerCoords.lng, coords[0], coords[1]);
+            {sortedProviders.map((provider) => {
+              const coords = provider.dispersedCoords;
+              const distanceKm = provider.distance;
 
               return (
                 <Marker
@@ -1180,9 +1346,11 @@ export default function CustomerDashboard() {
                       </div>
 
                       <div className="text-xs text-slate-600 space-y-1 py-1.5 border-t border-b border-slate-100 my-1.5">
-                        <div className="flex justify-between">
+                        <div className="flex justify-between items-center">
                           <span>📍 Distance:</span>
-                          <span className="font-semibold">~{distanceKm} km</span>
+                          <span className="font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded text-[11px]">
+                            {distanceKm} km away
+                          </span>
                         </div>
                         <div className="flex justify-between">
                           <span>💰 Rate:</span>
