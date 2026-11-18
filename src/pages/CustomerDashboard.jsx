@@ -5,7 +5,8 @@ import {
   Wrench, Zap, Sparkles, Hammer,
   CheckCircle2, X, ChevronRight, User as UserIcon,
   Crosshair, Loader2, Phone, AlertCircle, Radio, Wind,
-  Bookmark, XCircle, MessageSquare, Star, ArrowUpDown
+  Bookmark, XCircle, MessageSquare, Star, ArrowUpDown,
+  ShieldCheck, FileText, Sunrise, Sun, Moon
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
@@ -256,10 +257,29 @@ export default function CustomerDashboard() {
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [reviewSuccessToast, setReviewSuccessToast] = useState(false);
 
-  // Form states for booking modal
-  const [serviceDate, setServiceDate] = useState('');
-  const [serviceTime, setServiceTime] = useState('10:00 AM');
+  // Form states for booking modal with time slots, problem description & 4-digit OTP
+  const [serviceDate, setServiceDate] = useState(() => {
+    const tmrw = new Date();
+    tmrw.setDate(tmrw.getDate() + 1);
+    return tmrw.toISOString().split('T')[0];
+  });
+  const [timeSlot, setTimeSlot] = useState('Morning'); // 'Morning' | 'Afternoon' | 'Evening'
+  const [problemDescription, setProblemDescription] = useState('');
   const [serviceAddress, setServiceAddress] = useState(CUSTOMER_LOCATION.address);
+
+  // Cancel a pending booking (sets status: 'cancelled')
+  const handleCancelBooking = async (bookingId) => {
+    if (!window.confirm('Are you sure you want to cancel this pending booking?')) return;
+    try {
+      await updateDoc(doc(db, 'bookings', bookingId), {
+        status: 'cancelled',
+        cancelledAt: serverTimestamp()
+      });
+    } catch (err) {
+      console.error('Error cancelling booking:', err);
+      alert('Could not cancel booking: ' + err.message);
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -553,7 +573,7 @@ export default function CustomerDashboard() {
     setActiveBookingProvider(provider);
   };
 
-  // 3. BOOKING HANDLER: Writes new document to 'bookings' with required fields and serverTimestamp()
+  // 3. BOOKING HANDLER: Writes new document to 'bookings' with time slots, problem description & 4-digit OTP
   const handleConfirmBooking = async (e) => {
     e.preventDefault();
     if (!activeBookingProvider) return;
@@ -562,6 +582,9 @@ export default function CustomerDashboard() {
 
     const currentUid = user?.uid || user?.id || 'cust_101';
     const currentName = user?.name || 'Customer Alex';
+
+    // Generate random 4-digit security OTP string (e.g. '4829')
+    const jobOtp = Math.floor(1000 + Math.random() * 9000).toString();
 
     const bookingPayload = {
       customerId: currentUid,
@@ -572,11 +595,14 @@ export default function CustomerDashboard() {
       providerPhone: activeBookingProvider.phone || '+91 98765 12345',
       serviceCategory: activeBookingProvider.serviceCategory || activeBookingProvider.role || 'Service',
       price: Number(activeBookingProvider.price) || 500,
-      status: 'pending', // Required: status 'pending'
-      createdAt: serverTimestamp(), // Required: serverTimestamp()
+      status: 'pending', // Initial status
+      createdAt: serverTimestamp(),
       createdMillis: Date.now(),
       date: serviceDate || 'Tomorrow',
-      time: serviceTime,
+      timeSlot: timeSlot || 'Morning',
+      time: `${timeSlot || 'Morning'} (${timeSlot === 'Morning' ? '8 AM - 12 PM' : timeSlot === 'Afternoon' ? '12 PM - 4 PM' : '4 PM - 8 PM'})`,
+      problemDescription: problemDescription.trim() || 'General service inspection required',
+      jobOtp: jobOtp,
       address: serviceAddress || customerCoords.address || CUSTOMER_LOCATION.address,
       customerLat: Number(customerCoords.lat),
       customerLng: Number(customerCoords.lng),
@@ -606,10 +632,13 @@ export default function CustomerDashboard() {
       setBookingSuccess({
         provider: activeBookingProvider,
         date: serviceDate || 'Tomorrow',
-        time: serviceTime,
+        timeSlot: timeSlot || 'Morning',
+        time: `${timeSlot} (${timeSlot === 'Morning' ? '8 AM - 12 PM' : timeSlot === 'Afternoon' ? '12 PM - 4 PM' : '4 PM - 8 PM'})`,
+        problemDescription: problemDescription.trim(),
+        jobOtp
       });
       setActiveBookingProvider(null);
-      setServiceDate('');
+      setProblemDescription('');
       // Switch view to 'bookings' so customer immediately sees their new live pending request!
       setActiveLeftTab('bookings');
     }
@@ -622,7 +651,28 @@ export default function CustomerDashboard() {
         return (
           <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-1 rounded-full text-xs font-extrabold flex items-center shadow-xs">
             <CheckCircle2 className="h-3.5 w-3.5 mr-1.5 text-emerald-600" />
-            Accepted • Provider Assigned
+            Accepted • Share OTP with Provider
+          </span>
+        );
+      case 'in_progress':
+        return (
+          <span className="bg-blue-100 text-blue-800 border border-blue-200 px-3 py-1 rounded-full text-xs font-extrabold flex items-center shadow-xs">
+            <span className="h-2 w-2 rounded-full bg-blue-600 mr-1.5 animate-ping"></span>
+            Job In Progress
+          </span>
+        );
+      case 'completed':
+        return (
+          <span className="bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold flex items-center">
+            <CheckCircle2 className="h-3.5 w-3.5 mr-1.5 text-emerald-600" />
+            Service Completed
+          </span>
+        );
+      case 'cancelled':
+        return (
+          <span className="bg-slate-100 text-slate-700 border border-slate-300 px-3 py-1 rounded-full text-xs font-bold flex items-center">
+            <XCircle className="h-3.5 w-3.5 mr-1.5 text-slate-500" />
+            Cancelled
           </span>
         );
       case 'declined':
@@ -630,13 +680,6 @@ export default function CustomerDashboard() {
           <span className="bg-rose-100 text-rose-800 border border-rose-200 px-3 py-1 rounded-full text-xs font-bold flex items-center">
             <XCircle className="h-3.5 w-3.5 mr-1.5 text-rose-600" />
             Declined
-          </span>
-        );
-      case 'completed':
-        return (
-          <span className="bg-blue-100 text-blue-800 border border-blue-200 px-3 py-1 rounded-full text-xs font-bold flex items-center">
-            <CheckCircle2 className="h-3.5 w-3.5 mr-1.5 text-blue-600" />
-            Service Completed
           </span>
         );
       case 'pending':
@@ -1069,21 +1112,51 @@ export default function CustomerDashboard() {
                           </span>
                         </div>
 
-                        {/* Live Status Badge (Pending, Accepted, Declined) */}
+                        {/* Live Status Badge (Pending, Accepted, Declined, In Progress, Cancelled) */}
                         <div>
                           {renderStatusBadge(booking.status)}
                         </div>
                       </div>
 
-                      {/* Middle: Scheduled Details */}
-                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs text-slate-600 space-y-1.5">
+                      {/* PROMINENT 4-DIGIT SECURITY OTP (Share with provider upon arrival) */}
+                      {(booking.status === 'accepted' || (booking.status === 'in_progress' && booking.jobOtp)) && (
+                        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-dashed border-amber-300 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs animate-in zoom-in-95">
+                          <div className="space-y-1">
+                            <div className="flex items-center space-x-1.5 text-amber-800 text-xs font-black uppercase tracking-wider">
+                              <ShieldCheck className="h-4 w-4 text-amber-600 shrink-0" />
+                              <span>Security Verification</span>
+                            </div>
+                            <p className="text-xs text-amber-900 font-bold leading-snug">
+                              Share this OTP with the provider when they arrive
+                            </p>
+                          </div>
+                          <div className="bg-white px-4 py-2 rounded-xl border border-amber-300 shadow-xs flex items-center justify-center shrink-0">
+                            <span className="font-mono text-2xl font-black text-amber-900 tracking-[0.25em] pl-1">
+                              {booking.jobOtp || '----'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Middle: Scheduled Details & Problem Description */}
+                      <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100 text-xs text-slate-600 space-y-2">
+                        {booking.problemDescription && (
+                          <div className="flex items-start text-slate-700 pb-2 border-b border-slate-200/60">
+                            <FileText className="h-4 w-4 text-blue-600 mr-1.5 shrink-0 mt-0.5" />
+                            <div>
+                              <span className="font-bold text-slate-900 text-xs block uppercase tracking-wider">Issue Notes:</span>
+                              <span className="font-medium text-slate-800 text-xs">{booking.problemDescription}</span>
+                            </div>
+                          </div>
+                        )}
+
                         <div className="flex items-center justify-between">
                           <span className="flex items-center text-slate-500">
                             <Calendar className="h-3.5 w-3.5 mr-1 text-slate-400" />
-                            Date & Time:
+                            Date & Slot:
                           </span>
-                          <span className="font-semibold text-slate-800">
-                            {booking.date} at {booking.time}
+                          <span className="font-bold text-slate-800">
+                            {booking.date} • {booking.timeSlot || booking.time}
                           </span>
                         </div>
 
@@ -1105,7 +1178,7 @@ export default function CustomerDashboard() {
                         )}
                       </div>
 
-                      {/* Bottom: Price, Call & Message Buttons */}
+                      {/* Bottom: Price, Call, WhatsApp, Message & Cancel Buttons */}
                       <div className="pt-2 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                         <div>
                           <span className="text-slate-400 block text-[11px]">Total Rate:</span>
@@ -1116,6 +1189,18 @@ export default function CustomerDashboard() {
 
                         {/* Real-time Call, WhatsApp and Message Options */}
                         <div className="flex flex-wrap items-center gap-1.5">
+                          {/* CANCEL BOOKING BUTTON (For 'pending' bookings) */}
+                          {booking.status === 'pending' && (
+                            <button
+                              type="button"
+                              onClick={() => handleCancelBooking(booking.id)}
+                              className="bg-white hover:bg-rose-50 text-rose-600 hover:text-rose-700 border border-rose-200 hover:border-rose-300 px-3 py-1.5 rounded-xl font-bold transition shadow-2xs flex items-center space-x-1 cursor-pointer"
+                            >
+                              <XCircle className="h-3.5 w-3.5" />
+                              <span>Cancel Booking</span>
+                            </button>
+                          )}
+
                           {/* RATE & REVIEW FLOW (When status === 'completed') */}
                           {booking.status === 'completed' && (
                             booking.reviewed ? (
@@ -1434,8 +1519,9 @@ export default function CustomerDashboard() {
 
             {/* Modal Body / Form */}
             <form onSubmit={handleConfirmBooking} className="p-6 space-y-4">
+              {/* Preferred Date */}
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
                   Preferred Date
                 </label>
                 <div className="relative">
@@ -1443,34 +1529,67 @@ export default function CustomerDashboard() {
                   <input
                     type="date"
                     required
+                    min={new Date().toISOString().split('T')[0]}
                     value={serviceDate}
                     onChange={(e) => setServiceDate(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition"
                   />
                 </div>
               </div>
 
+              {/* Time Slot (Morning / Afternoon / Evening) */}
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-                  Preferred Time Slot
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                  Time Slot (Select Slot)
                 </label>
-                <div className="relative">
-                  <Clock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <select
-                    value={serviceTime}
-                    onChange={(e) => setServiceTime(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
-                  >
-                    <option value="09:00 AM">09:00 AM - 11:00 AM</option>
-                    <option value="12:00 PM">12:00 PM - 02:00 PM</option>
-                    <option value="03:00 PM">03:00 PM - 05:00 PM</option>
-                    <option value="06:00 PM">06:00 PM - 08:00 PM</option>
-                  </select>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: 'Morning', label: 'Morning', hours: '8 AM - 12 PM', icon: Sunrise },
+                    { id: 'Afternoon', label: 'Afternoon', hours: '12 PM - 4 PM', icon: Sun },
+                    { id: 'Evening', label: 'Evening', hours: '4 PM - 8 PM', icon: Moon }
+                  ].map((slot) => {
+                    const isSelected = timeSlot === slot.id;
+                    const Icon = slot.icon;
+                    return (
+                      <button
+                        key={slot.id}
+                        type="button"
+                        onClick={() => setTimeSlot(slot.id)}
+                        className={`p-2.5 rounded-2xl border text-center transition cursor-pointer flex flex-col items-center justify-center space-y-1 ${
+                          isSelected
+                            ? 'border-blue-600 bg-blue-50/90 text-blue-700 font-extrabold shadow-xs ring-1 ring-blue-500/30'
+                            : 'border-slate-200 bg-slate-50/70 hover:bg-slate-100 text-slate-600'
+                        }`}
+                      >
+                        <Icon className={`h-4 w-4 ${isSelected ? 'text-blue-600' : 'text-slate-400'}`} />
+                        <span className="text-xs">{slot.label}</span>
+                        <span className="text-[10px] text-slate-400 font-normal leading-tight">{slot.hours}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
+              {/* Short Problem Description */}
               <div>
-                <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  Problem Description / Issue Notes
+                </label>
+                <div className="relative">
+                  <textarea
+                    rows={2}
+                    required
+                    value={problemDescription}
+                    onChange={(e) => setProblemDescription(e.target.value)}
+                    placeholder="e.g., Kitchen sink leaking, pipe clogged, electrical sparking..."
+                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition resize-none placeholder:text-slate-400 text-slate-800"
+                  />
+                </div>
+              </div>
+
+              {/* Service Address */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
                   Service Address
                 </label>
                 <div className="relative">
@@ -1479,28 +1598,23 @@ export default function CustomerDashboard() {
                     rows={2}
                     value={serviceAddress}
                     onChange={(e) => setServiceAddress(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                    className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none resize-none text-slate-800"
                   />
                 </div>
               </div>
 
-              {/* Firestore Document Preview Details */}
-              <div className="bg-blue-50 p-3.5 rounded-xl border border-blue-200 text-xs text-blue-900 space-y-1">
-                <div className="flex justify-between">
-                  <span className="font-semibold">Target Collection:</span>
-                  <span className="font-mono">bookings</span>
+              {/* Security OTP & Booking Summary Notice */}
+              <div className="bg-amber-50 p-3.5 rounded-2xl border border-amber-200 text-xs text-amber-900 space-y-1.5">
+                <div className="flex items-center space-x-1.5 font-bold text-amber-800">
+                  <ShieldCheck className="h-4 w-4 text-amber-600 shrink-0" />
+                  <span>4-Digit Security OTP will be generated</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="font-semibold">Provider ID:</span>
-                  <span className="font-mono">{activeBookingProvider.uid || activeBookingProvider.id}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-semibold">Price per visit:</span>
-                  <span className="font-bold text-slate-900">₹{activeBookingProvider.price}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-semibold">Initial Status:</span>
-                  <span className="font-mono font-bold text-amber-700">pending</span>
+                <p className="text-[11px] text-amber-700 leading-relaxed">
+                  Upon confirmation, a unique 4-digit code will be generated to share with the provider when they arrive to verify and start the job.
+                </p>
+                <div className="flex justify-between items-center pt-1 border-t border-amber-200/60 font-semibold text-slate-800">
+                  <span>Estimated Rate:</span>
+                  <span className="font-bold text-sm text-slate-900">₹{activeBookingProvider.price} / visit</span>
                 </div>
               </div>
 
@@ -1513,7 +1627,7 @@ export default function CustomerDashboard() {
                 {isSubmittingBooking ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Writing to Firestore...</span>
+                    <span>Confirming Booking & Generating OTP...</span>
                   </>
                 ) : (
                   <span>Confirm & Send Booking Request</span>
@@ -1530,9 +1644,17 @@ export default function CustomerDashboard() {
           <CheckCircle2 className="h-6 w-6 text-emerald-400 shrink-0 mt-0.5" />
           <div className="flex-1">
             <h4 className="font-bold text-sm">Booking Sent to Firestore!</h4>
-            <p className="text-xs text-slate-300 mt-0.5">
-              Saved to <code className="font-mono text-blue-400">bookings</code> collection with status <strong>'pending'</strong>. Request dispatched to <strong>{bookingSuccess.provider.name}</strong>. Check <strong>My Bookings</strong> for live updates.
+            <p className="text-xs text-slate-300 mt-1">
+              Dispatched to <strong>{bookingSuccess.provider.name}</strong> for <strong>{bookingSuccess.date} ({bookingSuccess.timeSlot})</strong>.
             </p>
+            {bookingSuccess.jobOtp && (
+              <div className="mt-2 bg-slate-800 border border-slate-700 p-2.5 rounded-xl flex items-center justify-between">
+                <span className="text-[11px] text-slate-300">Your Security OTP:</span>
+                <span className="font-mono text-base font-black text-amber-400 tracking-widest">
+                  {bookingSuccess.jobOtp}
+                </span>
+              </div>
+            )}
           </div>
           <button
             onClick={() => setBookingSuccess(null)}

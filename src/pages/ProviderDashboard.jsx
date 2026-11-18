@@ -5,7 +5,7 @@ import {
   MapPin, Bell, XCircle, Briefcase,
   User, Radio, Calendar, Clock, Loader2, Sparkles,
   Crosshair, RefreshCw, ChevronDown, ChevronUp,
-  Phone, MessageSquare
+  Phone, MessageSquare, ShieldCheck, FileText
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
@@ -53,12 +53,17 @@ export default function ProviderDashboard() {
 
   // 2. Real Firestore Bookings states (where providerId == currentUser.uid)
   const [activeRequests, setActiveRequests] = useState([]); // status == 'pending'
-  const [acceptedJobs, setAcceptedJobs] = useState([]); // status == 'accepted'
+  const [acceptedJobs, setAcceptedJobs] = useState([]); // status == 'accepted' or 'in_progress'
   const [completedJobs, setCompletedJobs] = useState([]); // status == 'completed'
   const [loadingBookings, setLoadingBookings] = useState(true);
 
   // Real-time Chat modal state
   const [activeChatBooking, setActiveChatBooking] = useState(null);
+
+  // 4-digit Security OTP Verification states
+  const [otpInputs, setOtpInputs] = useState({});
+  const [otpErrors, setOtpErrors] = useState({});
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState({});
 
   // Live notification banner
   const [notification, setNotification] = useState(null);
@@ -206,7 +211,7 @@ export default function ProviderDashboard() {
 
           if (bookingItem.status === 'pending') {
             pending.push(bookingItem);
-          } else if (bookingItem.status === 'accepted') {
+          } else if (bookingItem.status === 'accepted' || bookingItem.status === 'in_progress') {
             accepted.push(bookingItem);
           } else if (bookingItem.status === 'completed') {
             completed.push(bookingItem);
@@ -258,20 +263,61 @@ export default function ProviderDashboard() {
     }
   };
 
-  // 5. ACTION: Decline Request -> Updates status to 'declined' in Firestore
-  const handleDeclineRequest = async (request) => {
+  // 5. ACTION: Decline / Cancel Request -> Updates status to 'cancelled' in Firestore
+  const handleCancelRequest = async (request) => {
+    if (!window.confirm('Are you sure you want to cancel this booking request?')) return;
     try {
       await updateDoc(doc(db, 'bookings', request.id), {
-        status: 'declined'
+        status: 'cancelled',
+        cancelledAt: serverTimestamp()
       });
-      setNotification(`❌ Declined booking from ${request.customerName}.`);
+      setNotification(`Booking request #${request.id.slice(0, 6)} has been cancelled.`);
     } catch (err) {
-      console.error('Error declining booking:', err);
-      alert('Could not update booking: ' + err.message);
+      console.error('Error cancelling booking:', err);
+      alert('Could not cancel booking: ' + err.message);
     }
   };
 
-  // 6. ACTION: Mark as Completed -> Updates status to 'completed' and completedAt in Firestore
+  const handleDeclineRequest = handleCancelRequest;
+
+  // 6. ACTION: Verify OTP -> Updates status to 'in_progress' in Firestore
+  const handleVerifyOtp = async (job) => {
+    const entered = (otpInputs[job.id] || '').trim();
+    if (!entered || entered.length !== 4) {
+      setOtpErrors(prev => ({
+        ...prev,
+        [job.id]: 'Please enter the 4-digit OTP provided by the customer.'
+      }));
+      return;
+    }
+
+    const expected = job.jobOtp ? String(job.jobOtp).trim() : '';
+
+    if (expected && entered !== expected) {
+      setOtpErrors(prev => ({
+        ...prev,
+        [job.id]: 'Invalid OTP. Ask the customer for the 4-digit code shown on their booking card.'
+      }));
+      return;
+    }
+
+    setIsVerifyingOtp(prev => ({ ...prev, [job.id]: true }));
+    try {
+      await updateDoc(doc(db, 'bookings', job.id), {
+        status: 'in_progress',
+        startedAt: serverTimestamp()
+      });
+      setOtpErrors(prev => ({ ...prev, [job.id]: null }));
+      setNotification(`🎉 Security OTP verified! Job for ${job.customerName} is now In Progress.`);
+    } catch (err) {
+      console.error('Failed to verify OTP:', err);
+      alert('Could not verify OTP: ' + err.message);
+    } finally {
+      setIsVerifyingOtp(prev => ({ ...prev, [job.id]: false }));
+    }
+  };
+
+  // 7. ACTION: Mark as Completed -> Updates status to 'completed' and completedAt in Firestore
   const handleCompleteJob = async (job) => {
     try {
       await updateDoc(doc(db, 'bookings', job.id), {
@@ -615,11 +661,20 @@ export default function ProviderDashboard() {
                         </span>
                       </div>
 
-                      <div className="text-xs text-slate-700 space-y-1 pt-1 border-t border-slate-200/60">
+                      <div className="text-xs text-slate-700 space-y-1.5 pt-1 border-t border-slate-200/60">
+                        {request.problemDescription && (
+                          <div className="flex items-start text-slate-800 pb-1.5 border-b border-slate-200/50">
+                            <FileText className="h-3.5 w-3.5 text-blue-600 mr-1.5 shrink-0 mt-0.5" />
+                            <div>
+                              <span className="font-bold text-slate-900 block text-[10px] uppercase tracking-wider">Issue Notes:</span>
+                              <span className="font-medium text-slate-700 leading-tight">{request.problemDescription}</span>
+                            </div>
+                          </div>
+                        )}
                         {request.date && (
                           <div className="flex items-center text-slate-600">
                             <Calendar className="h-3.5 w-3.5 text-slate-400 mr-1.5 shrink-0" />
-                            <span>Requested for: <strong>{request.date} ({request.time})</strong></span>
+                            <span>Requested for: <strong>{request.date} ({request.timeSlot || request.time})</strong></span>
                           </div>
                         )}
                         {request.address && (
@@ -635,7 +690,7 @@ export default function ProviderDashboard() {
                     </div>
                   </div>
 
-                  {/* Call & Message Actions + Accept & Decline */}
+                  {/* Call & Message Actions + Accept & Cancel Booking */}
                   <div className="pt-5 space-y-2.5">
                     {/* One-Tap Call, WhatsApp & Real-time Chat Buttons */}
                     <div className="flex flex-wrap items-center gap-1.5">
@@ -678,7 +733,7 @@ export default function ProviderDashboard() {
                       </button>
                     </div>
 
-                    {/* LARGE ACCEPT AND DECLINE BUTTONS */}
+                    {/* LARGE ACCEPT AND CANCEL BUTTONS */}
                     <div className="grid grid-cols-2 gap-2.5 pt-1">
                       <button
                         onClick={() => handleAcceptRequest(request)}
@@ -689,11 +744,11 @@ export default function ProviderDashboard() {
                       </button>
 
                       <button
-                        onClick={() => handleDeclineRequest(request)}
-                        className="bg-white hover:bg-red-50 hover:text-red-600 border-2 border-slate-200 hover:border-red-300 text-slate-700 active:scale-[0.98] py-3 px-3 rounded-2xl font-bold text-sm transition flex items-center justify-center space-x-1.5 cursor-pointer"
+                        onClick={() => handleCancelRequest(request)}
+                        className="bg-white hover:bg-rose-50 hover:text-rose-600 border-2 border-slate-200 hover:border-rose-300 text-slate-700 active:scale-[0.98] py-3 px-3 rounded-2xl font-bold text-sm transition flex items-center justify-center space-x-1.5 cursor-pointer"
                       >
                         <XCircle className="h-4 w-4" />
-                        <span>Decline</span>
+                        <span>Cancel Booking</span>
                       </button>
                     </div>
                   </div>
@@ -719,77 +774,171 @@ export default function ProviderDashboard() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {acceptedJobs.map((job) => (
-                <div key={job.id} className="bg-white rounded-2xl p-5 border border-emerald-200 shadow-xs flex flex-col justify-between space-y-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <h4 className="font-bold text-slate-900 text-base">{job.customerName}</h4>
-                        <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          In Progress
-                        </span>
+              {acceptedJobs.map((job) => {
+                const isAccepted = job.status === 'accepted';
+                const isInProgress = job.status === 'in_progress';
+
+                return (
+                  <div key={job.id} className="bg-white rounded-2xl p-5 border border-emerald-200 shadow-xs flex flex-col justify-between space-y-4">
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <h4 className="font-bold text-slate-900 text-base">{job.customerName}</h4>
+                            {isInProgress ? (
+                              <span className="bg-blue-100 text-blue-800 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full flex items-center shadow-2xs">
+                                <span className="h-1.5 w-1.5 rounded-full bg-blue-600 mr-1 animate-pulse"></span>
+                                In Progress
+                              </span>
+                            ) : (
+                              <span className="bg-amber-100 text-amber-800 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full flex items-center shadow-2xs">
+                                <ShieldCheck className="h-3 w-3 mr-1 text-amber-600" />
+                                OTP Verification Required
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm font-semibold text-emerald-700 mt-0.5">{job.serviceCategory}</p>
+                        </div>
+                        <span className="font-extrabold text-base text-slate-900">₹{job.price}</span>
                       </div>
-                      <p className="text-sm font-semibold text-emerald-700 mt-0.5">{job.serviceCategory}</p>
-                      <p className="text-xs text-slate-500 flex items-center mt-1">
-                        <MapPin className="h-3 w-3 mr-1 text-slate-400" />
-                        {job.address || 'Customer Location'}
-                      </p>
+
+                      {/* Problem Description & Scheduled Slot */}
+                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs text-slate-700 space-y-1.5">
+                        {job.problemDescription && (
+                          <div className="flex items-start text-slate-800 pb-1.5 border-b border-slate-200/50">
+                            <FileText className="h-3.5 w-3.5 text-blue-600 mr-1.5 shrink-0 mt-0.5" />
+                            <div>
+                              <span className="font-bold text-slate-900 block text-[10px] uppercase tracking-wider">Issue Notes:</span>
+                              <span className="font-medium text-slate-700 leading-tight">{job.problemDescription}</span>
+                            </div>
+                          </div>
+                        )}
+                        {job.date && (
+                          <div className="flex items-center text-slate-600">
+                            <Calendar className="h-3.5 w-3.5 text-slate-400 mr-1.5 shrink-0" />
+                            <span>Requested for: <strong>{job.date} ({job.timeSlot || job.time})</strong></span>
+                          </div>
+                        )}
+                        {job.address && (
+                          <div className="flex items-center text-slate-600">
+                            <MapPin className="h-3.5 w-3.5 text-slate-400 mr-1.5 shrink-0" />
+                            <span className="truncate">{job.address}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <span className="font-extrabold text-base text-slate-900">₹{job.price}</span>
-                  </div>
 
-                  {/* Actions: Call, WhatsApp & Message + Mark Completed */}
-                  <div className="space-y-2 pt-2 border-t border-slate-100">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <a
-                        href={`tel:${job.customerPhone || '+91 98765 43210'}`}
-                        title={`Call Customer: ${job.customerPhone || '+91 98765 43210'}`}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white py-1.5 px-3 rounded-xl font-bold text-xs transition flex items-center justify-center space-x-1 cursor-pointer flex-1"
-                      >
-                        <Phone className="h-3 w-3" />
-                        <span>Call</span>
-                      </a>
+                    {/* OTP VERIFICATION BOX TO START JOB (When status === 'accepted') */}
+                    {isAccepted && (
+                      <div className="bg-amber-50 border border-amber-300 rounded-2xl p-3.5 space-y-2 animate-in zoom-in-95">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-amber-900 flex items-center">
+                            <ShieldCheck className="h-4 w-4 mr-1 text-amber-600" />
+                            Enter 4-Digit Customer OTP
+                          </span>
+                          <span className="text-[10px] text-amber-700 font-semibold">Ask customer upon arrival</span>
+                        </div>
 
-                      {/* WhatsApp Button */}
-                      {job.customerPhone && getWhatsAppUrl(
-                        job.customerPhone,
-                        'Hi ' + (job.customerName || 'Customer') + ', this is ' + (job.providerName || user?.name || 'your provider') + ' regarding your ' + (job.serviceCategory || 'service') + ' booking.'
-                      ) && (
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="text"
+                            maxLength={4}
+                            placeholder="4-digit OTP"
+                            value={otpInputs[job.id] || ''}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                              setOtpInputs(prev => ({ ...prev, [job.id]: val }));
+                              if (otpErrors[job.id]) {
+                                setOtpErrors(prev => ({ ...prev, [job.id]: null }));
+                              }
+                            }}
+                            className="w-32 px-3 py-2 text-center text-base font-mono font-black tracking-widest bg-white border border-amber-300 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none"
+                          />
+
+                          <button
+                            type="button"
+                            onClick={() => handleVerifyOtp(job)}
+                            disabled={isVerifyingOtp[job.id] || (otpInputs[job.id] || '').length < 4}
+                            className="flex-1 bg-amber-500 hover:bg-amber-600 active:scale-[0.98] disabled:opacity-50 text-white font-bold text-xs py-2.5 px-3 rounded-xl transition shadow-xs flex items-center justify-center space-x-1 cursor-pointer"
+                          >
+                            {isVerifyingOtp[job.id] ? (
+                              <>
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                <span>Verifying...</span>
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                <span>Verify & Start Job</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+
+                        {otpErrors[job.id] && (
+                          <p className="text-[11px] font-bold text-rose-600 animate-in fade-in">
+                            {otpErrors[job.id]}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Actions: Call, WhatsApp & Message + Mark Completed */}
+                    <div className="space-y-2 pt-2 border-t border-slate-100">
+                      <div className="flex flex-wrap items-center gap-1.5">
                         <a
-                          href={getWhatsAppUrl(
-                            job.customerPhone,
-                            'Hi ' + (job.customerName || 'Customer') + ', this is ' + (job.providerName || user?.name || 'your provider') + ' regarding your ' + (job.serviceCategory || 'service') + ' booking.'
-                          )}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title="Chat with Customer on WhatsApp"
-                          className="bg-emerald-500 hover:bg-emerald-600 text-white py-1.5 px-3 rounded-xl font-bold text-xs transition flex items-center justify-center space-x-1 cursor-pointer flex-1"
+                          href={`tel:${job.customerPhone || '+91 98765 43210'}`}
+                          title={`Call Customer: ${job.customerPhone || '+91 98765 43210'}`}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white py-1.5 px-3 rounded-xl font-bold text-xs transition flex items-center justify-center space-x-1 cursor-pointer flex-1"
                         >
-                          <WhatsAppIcon className="h-3.5 w-3.5" />
-                          <span>WhatsApp</span>
+                          <Phone className="h-3 w-3" />
+                          <span>Call</span>
                         </a>
+
+                        {/* WhatsApp Button */}
+                        {job.customerPhone && getWhatsAppUrl(
+                          job.customerPhone,
+                          'Hi ' + (job.customerName || 'Customer') + ', this is ' + (job.providerName || user?.name || 'your provider') + ' regarding your ' + (job.serviceCategory || 'service') + ' booking.'
+                        ) && (
+                          <a
+                            href={getWhatsAppUrl(
+                              job.customerPhone,
+                              'Hi ' + (job.customerName || 'Customer') + ', this is ' + (job.providerName || user?.name || 'your provider') + ' regarding your ' + (job.serviceCategory || 'service') + ' booking.'
+                            )}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Chat with Customer on WhatsApp"
+                            className="bg-emerald-500 hover:bg-emerald-600 text-white py-1.5 px-3 rounded-xl font-bold text-xs transition flex items-center justify-center space-x-1 cursor-pointer flex-1"
+                          >
+                            <WhatsAppIcon className="h-3.5 w-3.5" />
+                            <span>WhatsApp</span>
+                          </a>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => setActiveChatBooking(job)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white py-1.5 px-3 rounded-xl font-bold text-xs transition flex items-center justify-center space-x-1 cursor-pointer flex-1"
+                        >
+                          <MessageSquare className="h-3 w-3" />
+                          <span>Message</span>
+                        </button>
+                      </div>
+
+                      {/* MARK AS COMPLETED BUTTON */}
+                      {(isInProgress || isAccepted) && (
+                        <button
+                          onClick={() => handleCompleteJob(job)}
+                          className="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center space-x-2 cursor-pointer shadow-xs"
+                        >
+                          <CheckCircle2 className="h-4 w-4 text-white" />
+                          <span>Mark as Completed</span>
+                        </button>
                       )}
-
-                      <button
-                        type="button"
-                        onClick={() => setActiveChatBooking(job)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white py-1.5 px-3 rounded-xl font-bold text-xs transition flex items-center justify-center space-x-1 cursor-pointer flex-1"
-                      >
-                        <MessageSquare className="h-3 w-3" />
-                        <span>Message</span>
-                      </button>
                     </div>
-
-                    <button
-                      onClick={() => handleCompleteJob(job)}
-                      className="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center space-x-2 cursor-pointer shadow-xs"
-                    >
-                      <CheckCircle2 className="h-4 w-4 text-white" />
-                      <span>Mark as Completed</span>
-                    </button>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>
