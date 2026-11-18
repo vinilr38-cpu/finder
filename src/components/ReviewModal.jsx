@@ -27,8 +27,8 @@ export default function ReviewModal({ booking, onSubmitReview, onClose, isSubmit
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4">
+      <div className="bg-white rounded-3xl w-[95%] max-w-md max-h-[85vh] overflow-y-auto mx-auto z-50 shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-150">
         
         {/* MODAL HEADER */}
         <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-6 text-white flex justify-between items-start">
@@ -117,7 +117,7 @@ export default function ReviewModal({ booking, onSubmitReview, onClose, isSubmit
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full bg-amber-500 hover:bg-amber-600 active:scale-[0.99] disabled:opacity-75 text-white font-extrabold py-3 px-4 rounded-xl transition shadow-lg shadow-amber-500/25 flex items-center justify-center space-x-2 text-sm cursor-pointer"
+              className="w-full min-h-[44px] bg-amber-500 hover:bg-amber-600 active:scale-[0.99] disabled:opacity-75 text-white font-extrabold py-2.5 px-4 rounded-xl transition shadow-lg shadow-amber-500/25 flex items-center justify-center space-x-2 text-sm cursor-pointer"
             >
               {isSubmitting ? (
                 <>

@@ -118,7 +118,7 @@ export default function BookingChatModal({ booking, currentUser, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4">
-      <div className="bg-white rounded-3xl w-full max-w-lg h-[600px] max-h-[92vh] flex flex-col overflow-hidden shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-150">
+      <div className="bg-white rounded-3xl w-[95%] max-w-md max-h-[85vh] overflow-y-auto mx-auto z-50 flex flex-col shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-150">
         
         {/* MODAL HEADER */}
         <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white p-4 sm:p-5 flex items-center justify-between shrink-0 shadow-md">
@@ -263,7 +263,7 @@ export default function BookingChatModal({ booking, currentUser, onClose }) {
             <button
               type="submit"
               disabled={isSending || !text.trim()}
-              className="bg-blue-600 hover:bg-blue-700 active:scale-[0.98] disabled:opacity-50 text-white p-2.5 sm:px-4 sm:py-2.5 rounded-2xl transition shadow-xs flex items-center justify-center space-x-1.5 cursor-pointer font-bold text-xs"
+              className="min-h-[40px] bg-blue-600 hover:bg-blue-700 active:scale-[0.98] disabled:opacity-50 text-white p-2.5 sm:px-4 rounded-2xl transition shadow-xs flex items-center justify-center space-x-1.5 cursor-pointer font-bold text-xs shrink-0"
             >
               {isSending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

@@ -225,8 +225,8 @@ export default function AdminDashboard() {
   // PASSCODE GATE SCREEN IF NOT AUTHENTICATED
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-sans text-slate-100">
-        <div className="bg-slate-800 border border-slate-700 rounded-3xl p-7 sm:p-8 max-w-md w-full shadow-2xl space-y-6">
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-sans text-slate-100 overflow-x-hidden">
+        <div className="bg-slate-800 border border-slate-700 rounded-3xl p-6 sm:p-8 w-[95%] max-w-md max-h-[85vh] overflow-y-auto mx-auto z-50 shadow-2xl space-y-6">
           <div className="text-center space-y-2">
             <div className="w-14 h-14 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-blue-500/30 text-white">
               <ShieldCheck className="h-7 w-7" />
@@ -294,11 +294,11 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 font-sans text-slate-800 flex flex-col justify-between">
+    <div className="min-h-screen bg-slate-100 font-sans text-slate-800 flex flex-col justify-between overflow-x-hidden">
       
       {/* 1. TOP ADMIN NAVIGATION */}
       <header className="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-40 shadow-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-2 min-h-[56px]">
           <div className="flex items-center space-x-3">
             <div className="bg-blue-600 p-2 rounded-xl text-white shadow-xs">
               <ShieldCheck className="h-5 w-5" />

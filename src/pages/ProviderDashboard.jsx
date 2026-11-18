@@ -336,32 +336,32 @@ export default function ProviderDashboard() {
   const totalCompletedCount = completedJobs.length + 32;
 
   return (
-    <div className="min-h-screen bg-slate-100 font-sans text-slate-800 flex flex-col justify-between">
+    <div className="min-h-screen w-full bg-slate-100 font-sans text-slate-800 flex flex-col justify-between overflow-x-hidden">
 
       {/* 1. TOP NAVIGATION BAR */}
       <nav className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="bg-emerald-600 p-2 rounded-xl text-white shadow-xs">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-2 min-h-[56px]">
+          <div className="flex items-center space-x-2.5 sm:space-x-3">
+            <div className="bg-emerald-600 p-2 rounded-xl text-white shadow-xs shrink-0">
               <Wrench className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="font-extrabold text-xl tracking-tight text-slate-900 leading-none">
+              <h1 className="font-extrabold text-base sm:text-xl tracking-tight text-slate-900 leading-none">
                 LocalServe Pro
               </h1>
-              <p className="text-[11px] text-slate-400 font-medium leading-none mt-0.5">
+              <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium leading-none mt-0.5">
                 Provider Control Center • Live Firestore Sync
               </p>
             </div>
           </div>
 
-          <div className="flex items-center space-x-2 sm:space-x-3">
+          <div className="flex flex-wrap items-center gap-2">
             {/* Update My Location Button */}
             <button
               onClick={handleUpdateLocation}
               disabled={isUpdatingLocation}
               title="Detect and update GPS coordinates in Firestore"
-              className="flex items-center space-x-1.5 bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 px-3 py-1.5 rounded-xl border border-slate-200 hover:border-emerald-300 text-xs font-semibold transition cursor-pointer shadow-2xs"
+              className="min-h-[40px] flex items-center space-x-1.5 bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 px-3 py-2 rounded-xl border border-slate-200 hover:border-emerald-300 text-xs font-semibold transition cursor-pointer shadow-2xs"
             >
               {isUpdatingLocation ? (
                 <>
@@ -377,7 +377,7 @@ export default function ProviderDashboard() {
             </button>
 
             {/* Provider Info Pill */}
-            <div className="hidden md:flex items-center space-x-2 bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1.5 rounded-full text-xs font-semibold">
+            <div className="hidden md:flex items-center space-x-2 bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-2 rounded-xl text-xs font-semibold min-h-[40px]">
               <User className="h-3.5 w-3.5 text-emerald-600" />
               <span>{user?.name || 'Service Provider'}</span>
               <span className="text-[10px] bg-emerald-200 text-emerald-900 px-1.5 py-0.2 rounded font-bold uppercase">
@@ -388,7 +388,7 @@ export default function ProviderDashboard() {
             {/* Logout Button */}
             <button
               onClick={handleLogout}
-              className="flex items-center space-x-1.5 bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-red-600 px-3.5 py-1.5 rounded-xl border border-slate-200 hover:border-red-200 text-xs font-bold transition cursor-pointer"
+              className="min-h-[40px] flex items-center space-x-1.5 bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-red-600 px-3.5 py-2 rounded-xl border border-slate-200 hover:border-red-200 text-xs font-bold transition cursor-pointer shrink-0"
             >
               <LogOut className="h-3.5 w-3.5" />
               <span>Logout</span>
@@ -617,7 +617,7 @@ export default function ProviderDashboard() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
               {activeRequests.map((request) => (
                 <div
                   key={request.id}
@@ -661,7 +661,7 @@ export default function ProviderDashboard() {
                         </span>
                       </div>
 
-                      <div className="text-xs text-slate-700 space-y-1.5 pt-1 border-t border-slate-200/60">
+                      <div className="text-xs text-slate-700 space-y-2 pt-1 border-t border-slate-200/60">
                         {request.problemDescription && (
                           <div className="flex items-start text-slate-800 pb-1.5 border-b border-slate-200/50">
                             <FileText className="h-3.5 w-3.5 text-blue-600 mr-1.5 shrink-0 mt-0.5" />
@@ -677,12 +677,27 @@ export default function ProviderDashboard() {
                             <span>Requested for: <strong>{request.date} ({request.timeSlot || request.time})</strong></span>
                           </div>
                         )}
-                        {request.address && (
-                          <div className="flex items-center text-slate-600">
-                            <MapPin className="h-3.5 w-3.5 text-slate-400 mr-1.5 shrink-0" />
-                            <span className="truncate">{request.address}</span>
+
+                        {/* Customer Service Address Display */}
+                        {(request.customerAddress || request.address) && (
+                          <div className="flex items-start text-slate-800 bg-amber-50/70 p-3 rounded-2xl border border-amber-200/80">
+                            <MapPin className="h-4 w-4 text-amber-600 mr-2 shrink-0 mt-0.5" />
+                            <div className="min-w-0 flex-1">
+                              <span className="font-extrabold text-amber-900 block text-[11px] uppercase tracking-wider">
+                                Customer Location:
+                              </span>
+                              <span className="font-semibold text-slate-800 text-xs sm:text-sm leading-snug block break-words">
+                                {request.customerAddress || request.address}
+                              </span>
+                              {(request.customerLat || request.customerLng) && (
+                                <span className="text-[10px] text-slate-500 font-mono block mt-1">
+                                  📍 Coordinates: [{Number(request.customerLat).toFixed(4)}, {Number(request.customerLng).toFixed(4)}]
+                                </span>
+                              )}
+                            </div>
                           </div>
                         )}
+
                         <div className="text-[11px] text-slate-400 font-mono pt-1">
                           Booking ID: {request.id.slice(0, 8)}...
                         </div>
@@ -693,13 +708,13 @@ export default function ProviderDashboard() {
                   {/* Call & Message Actions + Accept & Cancel Booking */}
                   <div className="pt-5 space-y-2.5">
                     {/* One-Tap Call, WhatsApp & Real-time Chat Buttons */}
-                    <div className="flex flex-wrap items-center gap-1.5">
+                    <div className="flex flex-wrap items-center gap-2">
                       <a
                         href={`tel:${request.customerPhone || '+91 98765 43210'}`}
                         title={`Call Customer: ${request.customerPhone || '+91 98765 43210'}`}
-                        className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white py-2 px-3 rounded-xl font-bold text-xs transition shadow-xs flex items-center justify-center space-x-1 cursor-pointer flex-1"
+                        className="min-h-[40px] bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white py-2 px-3.5 rounded-xl font-bold text-xs transition shadow-xs flex items-center justify-center space-x-1.5 cursor-pointer flex-1 sm:flex-initial"
                       >
-                        <Phone className="h-3.5 w-3.5" />
+                        <Phone className="h-4 w-4" />
                         <span>Call</span>
                       </a>
 
@@ -716,9 +731,9 @@ export default function ProviderDashboard() {
                             target="_blank"
                             rel="noopener noreferrer"
                             title="Chat with Customer on WhatsApp"
-                            className="bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] text-white py-2 px-3 rounded-xl font-bold text-xs transition shadow-xs flex items-center justify-center space-x-1 cursor-pointer flex-1"
+                            className="min-h-[40px] bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] text-white py-2 px-3.5 rounded-xl font-bold text-xs transition shadow-xs flex items-center justify-center space-x-1.5 cursor-pointer flex-1 sm:flex-initial"
                           >
-                            <WhatsAppIcon className="h-3.5 w-3.5" />
+                            <WhatsAppIcon className="h-4 w-4" />
                             <span>WhatsApp</span>
                           </a>
                         )}
@@ -726,18 +741,18 @@ export default function ProviderDashboard() {
                       <button
                         type="button"
                         onClick={() => setActiveChatBooking(request)}
-                        className="bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white py-2 px-3 rounded-xl font-bold text-xs transition shadow-xs flex items-center justify-center space-x-1 cursor-pointer flex-1"
+                        className="min-h-[40px] bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white py-2 px-3.5 rounded-xl font-bold text-xs transition shadow-xs flex items-center justify-center space-x-1.5 cursor-pointer flex-1 sm:flex-initial"
                       >
-                        <MessageSquare className="h-3.5 w-3.5" />
+                        <MessageSquare className="h-4 w-4" />
                         <span>Message</span>
                       </button>
                     </div>
 
                     {/* LARGE ACCEPT AND CANCEL BUTTONS */}
-                    <div className="grid grid-cols-2 gap-2.5 pt-1">
+                    <div className="flex flex-wrap gap-2 pt-1">
                       <button
                         onClick={() => handleAcceptRequest(request)}
-                        className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white py-3 px-3 rounded-2xl font-bold text-sm transition shadow-md shadow-emerald-600/20 flex items-center justify-center space-x-1.5 cursor-pointer"
+                        className="min-h-[40px] flex-1 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white py-2.5 px-4 rounded-xl font-bold text-sm transition shadow-md shadow-emerald-600/20 flex items-center justify-center space-x-1.5 cursor-pointer"
                       >
                         <CheckCircle2 className="h-4 w-4" />
                         <span>Accept</span>
@@ -745,7 +760,7 @@ export default function ProviderDashboard() {
 
                       <button
                         onClick={() => handleCancelRequest(request)}
-                        className="bg-white hover:bg-rose-50 hover:text-rose-600 border-2 border-slate-200 hover:border-rose-300 text-slate-700 active:scale-[0.98] py-3 px-3 rounded-2xl font-bold text-sm transition flex items-center justify-center space-x-1.5 cursor-pointer"
+                        className="min-h-[40px] flex-1 bg-white hover:bg-rose-50 hover:text-rose-600 border border-slate-300 hover:border-rose-300 text-slate-700 active:scale-[0.98] py-2.5 px-4 rounded-xl font-bold text-sm transition flex items-center justify-center space-x-1.5 cursor-pointer"
                       >
                         <XCircle className="h-4 w-4" />
                         <span>Cancel Booking</span>
@@ -773,7 +788,7 @@ export default function ProviderDashboard() {
               No jobs currently in progress. When you accept an incoming request above, it will move here.
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {acceptedJobs.map((job) => {
                 const isAccepted = job.status === 'accepted';
                 const isInProgress = job.status === 'in_progress';
@@ -803,7 +818,7 @@ export default function ProviderDashboard() {
                       </div>
 
                       {/* Problem Description & Scheduled Slot */}
-                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs text-slate-700 space-y-1.5">
+                      <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100 text-xs text-slate-700 space-y-2">
                         {job.problemDescription && (
                           <div className="flex items-start text-slate-800 pb-1.5 border-b border-slate-200/50">
                             <FileText className="h-3.5 w-3.5 text-blue-600 mr-1.5 shrink-0 mt-0.5" />
@@ -819,10 +834,24 @@ export default function ProviderDashboard() {
                             <span>Requested for: <strong>{job.date} ({job.timeSlot || job.time})</strong></span>
                           </div>
                         )}
-                        {job.address && (
-                          <div className="flex items-center text-slate-600">
-                            <MapPin className="h-3.5 w-3.5 text-slate-400 mr-1.5 shrink-0" />
-                            <span className="truncate">{job.address}</span>
+
+                        {/* Customer Service Address Display */}
+                        {(job.customerAddress || job.address) && (
+                          <div className="flex items-start text-slate-800 bg-emerald-50/70 p-3 rounded-2xl border border-emerald-200/80">
+                            <MapPin className="h-4 w-4 text-emerald-600 mr-2 shrink-0 mt-0.5" />
+                            <div className="min-w-0 flex-1">
+                              <span className="font-extrabold text-emerald-900 block text-[11px] uppercase tracking-wider">
+                                Customer Location:
+                              </span>
+                              <span className="font-semibold text-slate-800 text-xs sm:text-sm leading-snug block break-words">
+                                {job.customerAddress || job.address}
+                              </span>
+                              {(job.customerLat || job.customerLng) && (
+                                <span className="text-[10px] text-slate-500 font-mono block mt-1">
+                                  📍 Coordinates: [{Number(job.customerLat).toFixed(4)}, {Number(job.customerLng).toFixed(4)}]
+                                </span>
+                              )}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -859,7 +888,7 @@ export default function ProviderDashboard() {
                             type="button"
                             onClick={() => handleVerifyOtp(job)}
                             disabled={isVerifyingOtp[job.id] || (otpInputs[job.id] || '').length < 4}
-                            className="flex-1 bg-amber-500 hover:bg-amber-600 active:scale-[0.98] disabled:opacity-50 text-white font-bold text-xs py-2.5 px-3 rounded-xl transition shadow-xs flex items-center justify-center space-x-1 cursor-pointer"
+                            className="min-h-[40px] flex-1 bg-amber-500 hover:bg-amber-600 active:scale-[0.98] disabled:opacity-50 text-white font-bold text-xs py-2 px-3 rounded-xl transition shadow-xs flex items-center justify-center space-x-1 cursor-pointer"
                           >
                             {isVerifyingOtp[job.id] ? (
                               <>
@@ -884,14 +913,14 @@ export default function ProviderDashboard() {
                     )}
 
                     {/* Actions: Call, WhatsApp & Message + Mark Completed */}
-                    <div className="space-y-2 pt-2 border-t border-slate-100">
-                      <div className="flex flex-wrap items-center gap-1.5">
+                    <div className="space-y-2.5 pt-2 border-t border-slate-100">
+                      <div className="flex flex-wrap items-center gap-2">
                         <a
                           href={`tel:${job.customerPhone || '+91 98765 43210'}`}
                           title={`Call Customer: ${job.customerPhone || '+91 98765 43210'}`}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white py-1.5 px-3 rounded-xl font-bold text-xs transition flex items-center justify-center space-x-1 cursor-pointer flex-1"
+                          className="min-h-[40px] bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-3.5 rounded-xl font-bold text-xs transition flex items-center justify-center space-x-1 cursor-pointer flex-1 sm:flex-initial"
                         >
-                          <Phone className="h-3 w-3" />
+                          <Phone className="h-4 w-4" />
                           <span>Call</span>
                         </a>
 
@@ -908,9 +937,9 @@ export default function ProviderDashboard() {
                             target="_blank"
                             rel="noopener noreferrer"
                             title="Chat with Customer on WhatsApp"
-                            className="bg-emerald-500 hover:bg-emerald-600 text-white py-1.5 px-3 rounded-xl font-bold text-xs transition flex items-center justify-center space-x-1 cursor-pointer flex-1"
+                            className="min-h-[40px] bg-emerald-500 hover:bg-emerald-600 text-white py-2 px-3.5 rounded-xl font-bold text-xs transition flex items-center justify-center space-x-1 cursor-pointer flex-1 sm:flex-initial"
                           >
-                            <WhatsAppIcon className="h-3.5 w-3.5" />
+                            <WhatsAppIcon className="h-4 w-4" />
                             <span>WhatsApp</span>
                           </a>
                         )}
@@ -918,9 +947,9 @@ export default function ProviderDashboard() {
                         <button
                           type="button"
                           onClick={() => setActiveChatBooking(job)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white py-1.5 px-3 rounded-xl font-bold text-xs transition flex items-center justify-center space-x-1 cursor-pointer flex-1"
+                          className="min-h-[40px] bg-blue-600 hover:bg-blue-700 text-white py-2 px-3.5 rounded-xl font-bold text-xs transition flex items-center justify-center space-x-1 cursor-pointer flex-1 sm:flex-initial"
                         >
-                          <MessageSquare className="h-3 w-3" />
+                          <MessageSquare className="h-4 w-4" />
                           <span>Message</span>
                         </button>
                       </div>
@@ -929,7 +958,7 @@ export default function ProviderDashboard() {
                       {(isInProgress || isAccepted) && (
                         <button
                           onClick={() => handleCompleteJob(job)}
-                          className="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center space-x-2 cursor-pointer shadow-xs"
+                          className="w-full min-h-[44px] bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white py-2.5 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center space-x-2 cursor-pointer shadow-xs"
                         >
                           <CheckCircle2 className="h-4 w-4 text-white" />
                           <span>Mark as Completed</span>

@@ -195,11 +195,11 @@ export default function LandingPage() {
   const categories = ['Electrician', 'Plumber', 'Cleaner', 'AC Repair', 'Carpenter'];
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-between font-sans text-slate-800">
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-between font-sans text-slate-800 overflow-x-hidden">
 
       {/* 1. TOP NAVBAR */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-2 min-h-[56px]">
           <div className="flex items-center space-x-3">
             <div className="bg-blue-600 p-2 rounded-xl text-white shadow-md shadow-blue-500/20">
               <LayoutDashboard className="h-5 w-5" />
@@ -264,7 +264,7 @@ export default function LandingPage() {
         </div>
 
         {/* Right Column: Modern Authentication Card (Login & Sign Up) */}
-        <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-slate-200 p-6 sm:p-8">
+        <div className="w-[95%] max-w-md max-h-[85vh] overflow-y-auto mx-auto bg-white rounded-3xl shadow-xl border border-slate-200 p-6 sm:p-8 z-20">
 
           {/* Tab Switcher: Login vs Sign Up */}
           <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-slate-100 rounded-2xl mb-6">
@@ -691,8 +691,8 @@ export default function LandingPage() {
 
       {/* DEMO ADMIN PASSCODE MODAL */}
       {showAdminModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white rounded-3xl w-[95%] max-w-md max-h-[85vh] overflow-y-auto mx-auto z-50 shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-150">
             <div className="bg-slate-900 p-5 text-white flex justify-between items-start">
               <div className="flex items-center space-x-2.5">
                 <div className="p-2 bg-blue-600 rounded-xl text-white">

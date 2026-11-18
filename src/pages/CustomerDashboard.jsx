@@ -178,10 +178,9 @@ export default function CustomerDashboard() {
   const [customerCoords, setCustomerCoords] = useState({
     lat: Number(user?.lat) || CUSTOMER_LOCATION.lat,
     lng: Number(user?.lng) || CUSTOMER_LOCATION.lng,
-    address: user?.address || CUSTOMER_LOCATION.address
+    address: user?.address || ''
   });
-  const [hasMovedLocation, setHasMovedLocation] = useState(false);
-  const [isSavingCustomerLoc, setIsSavingCustomerLoc] = useState(false);
+  const [isSavingLoc, setIsSavingLoc] = useState(false);
   const [locationSavedAlert, setLocationSavedAlert] = useState(false);
 
   // Sync with user profile once loaded
@@ -191,11 +190,17 @@ export default function CustomerDashboard() {
         ...prev,
         lat: Number(user.lat),
         lng: Number(user.lng),
-        ...(user.address ? { address: user.address } : {})
+        address: user.address || prev.address || ''
       }));
       if (user.address) {
         setServiceAddress(user.address);
       }
+    } else if (user?.address) {
+      setCustomerCoords(prev => ({
+        ...prev,
+        address: user.address
+      }));
+      setServiceAddress(user.address);
     }
   }, [user?.lat, user?.lng, user?.address]);
 
@@ -219,6 +224,27 @@ export default function CustomerDashboard() {
   const [selectedProvider, setSelectedProvider] = useState(null);
   const [mapTarget, setMapTarget] = useState(null);
 
+  // Helper to persist lat, lng, and address immediately to Firestore users/{uid}
+  const saveLocationToFirestore = async (newLat, newLng, newAddress) => {
+    const currentUid = user?.uid || user?.id;
+    if (!currentUid) return;
+
+    setIsSavingLoc(true);
+    try {
+      await updateDoc(doc(db, 'users', currentUid), {
+        lat: Number(newLat),
+        lng: Number(newLng),
+        address: newAddress || ''
+      });
+      setLocationSavedAlert(true);
+      setTimeout(() => setLocationSavedAlert(false), 3000);
+    } catch (err) {
+      console.warn('Could not auto-save location to Firestore users document:', err.message);
+    } finally {
+      setIsSavingLoc(false);
+    }
+  };
+
   // Live GPS Detection via navigator.geolocation
   const handleDetectCurrentLocation = () => {
     if (!navigator.geolocation) {
@@ -227,17 +253,35 @@ export default function CustomerDashboard() {
     }
     setIsDetectingGPS(true);
     navigator.geolocation.getCurrentPosition(
-      (position) => {
+      async (position) => {
         setIsDetectingGPS(false);
         const lat = Number(position.coords.latitude.toFixed(6));
         const lng = Number(position.coords.longitude.toFixed(6));
-        setCustomerCoords({
-          lat,
-          lng,
-          address: 'Current GPS Location'
-        });
+
+        // Attempt reverse geocoding via Nominatim
+        let resolvedAddress = `GPS Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
+            { headers: { Accept: 'application/json' } }
+          );
+          if (res.ok) {
+            const data = await res.json();
+            if (data?.display_name) {
+              resolvedAddress = data.display_name;
+            }
+          }
+        } catch (e) {
+          console.warn('Reverse geocode failed:', e);
+        }
+
+        const newLoc = { lat, lng, address: resolvedAddress };
+        setCustomerCoords(newLoc);
+        setServiceAddress(resolvedAddress);
         setMapTarget({ lat, lng });
-        setHasMovedLocation(true);
+
+        // Immediately save lat, lng, and address to Firestore users/{uid}
+        await saveLocationToFirestore(lat, lng, resolvedAddress);
       },
       (error) => {
         setIsDetectingGPS(false);
@@ -265,7 +309,7 @@ export default function CustomerDashboard() {
   });
   const [timeSlot, setTimeSlot] = useState('Morning'); // 'Morning' | 'Afternoon' | 'Evening'
   const [problemDescription, setProblemDescription] = useState('');
-  const [serviceAddress, setServiceAddress] = useState(CUSTOMER_LOCATION.address);
+  const [serviceAddress, setServiceAddress] = useState(user?.address || CUSTOMER_LOCATION.address);
 
   // Cancel a pending booking (sets status: 'cancelled')
   const handleCancelBooking = async (bookingId) => {
@@ -287,47 +331,55 @@ export default function CustomerDashboard() {
   };
 
   // Handle customer pin reposition (via dragend or map click)
-  const handleCustomerLocationChange = (coords) => {
-    setCustomerCoords(prev => ({
-      ...prev,
-      lat: coords.lat,
-      lng: coords.lng
-    }));
-    setHasMovedLocation(true);
+  const handleCustomerLocationChange = async (coords) => {
+    const numLat = Number(Number(coords.lat).toFixed(6));
+    const numLng = Number(Number(coords.lng).toFixed(6));
+
+    // Reverse geocode to find address for the new pin position
+    let resolvedAddress = coords.address || `Pin Location (${numLat.toFixed(4)}, ${numLng.toFixed(4)})`;
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${numLat}&lon=${numLng}`,
+        { headers: { Accept: 'application/json' } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.display_name) {
+          resolvedAddress = data.display_name;
+        }
+      }
+    } catch (e) {
+      console.warn('Reverse geocode on drag failed:', e);
+    }
+
+    const updated = {
+      lat: numLat,
+      lng: numLng,
+      address: resolvedAddress
+    };
+    setCustomerCoords(updated);
+    setServiceAddress(resolvedAddress);
+    setMapTarget({ lat: numLat, lng: numLng });
+
+    // Immediately save lat, lng, and address to Firestore users/{uid}
+    await saveLocationToFirestore(numLat, numLng, resolvedAddress);
   };
 
   // Handle Nominatim address search selection
-  const handleAddressSearchSelect = ({ lat, lng, address }) => {
-    setCustomerCoords({
-      lat,
-      lng,
-      address
-    });
-    setServiceAddress(address);
-    setMapTarget({ lat, lng });
-    setHasMovedLocation(true);
-  };
+  const handleAddressSearchSelect = async ({ lat, lng, address }) => {
+    const numLat = Number(Number(lat).toFixed(6));
+    const numLng = Number(Number(lng).toFixed(6));
+    const newLoc = {
+      lat: numLat,
+      lng: numLng,
+      address: address || ''
+    };
+    setCustomerCoords(newLoc);
+    setServiceAddress(address || '');
+    setMapTarget({ lat: numLat, lng: numLng });
 
-  // Confirm and save coordinates & readable address to Firestore
-  const handleConfirmCustomerLocation = async () => {
-    const currentUid = user?.uid || user?.id;
-    if (!currentUid) return;
-
-    setIsSavingCustomerLoc(true);
-    try {
-      await updateDoc(doc(db, 'users', currentUid), {
-        lat: customerCoords.lat,
-        lng: customerCoords.lng,
-        address: customerCoords.address || serviceAddress || ''
-      });
-      setHasMovedLocation(false);
-      setLocationSavedAlert(true);
-      setTimeout(() => setLocationSavedAlert(false), 3500);
-    } catch (err) {
-      console.warn('Could not save customer location in Firestore:', err.message);
-    } finally {
-      setIsSavingCustomerLoc(false);
-    }
+    // Immediately save lat, lng, and address to Firestore users/{uid}
+    await saveLocationToFirestore(numLat, numLng, address || '');
   };
 
   // Submit 5-star review, save to reviews & recalculate provider average rating in Firestore
@@ -592,6 +644,10 @@ export default function CustomerDashboard() {
       customerId: currentUid,
       customerName: currentName,
       customerPhone: user?.phone || user?.phoneNumber || '+91 98765 43210',
+      customerAddress: serviceAddress || customerCoords.address || 'Location not set',
+      customerLat: Number(customerCoords.lat),
+      customerLng: Number(customerCoords.lng),
+      address: serviceAddress || customerCoords.address || 'Location not set',
       providerId: activeBookingProvider.uid || activeBookingProvider.id,
       providerName: activeBookingProvider.name,
       providerPhone: activeBookingProvider.phone || '+91 98765 12345',
@@ -605,9 +661,6 @@ export default function CustomerDashboard() {
       time: `${timeSlot || 'Morning'} (${timeSlot === 'Morning' ? '8 AM - 12 PM' : timeSlot === 'Afternoon' ? '12 PM - 4 PM' : '4 PM - 8 PM'})`,
       problemDescription: problemDescription.trim() || 'General service inspection required',
       jobOtp: jobOtp,
-      address: serviceAddress || customerCoords.address || CUSTOMER_LOCATION.address,
-      customerLat: Number(customerCoords.lat),
-      customerLng: Number(customerCoords.lng),
     };
 
     try {
@@ -622,7 +675,6 @@ export default function CustomerDashboard() {
             lng: customerCoords.lng,
             address: serviceAddress || customerCoords.address || ''
           });
-          setHasMovedLocation(false);
         } catch (e) {
           console.warn('Could not update user coordinates on booking confirmation:', e.message);
         }
@@ -696,52 +748,37 @@ export default function CustomerDashboard() {
   };
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-slate-100 font-sans text-slate-800 overflow-hidden">
+    <div className="min-h-screen w-full flex flex-col bg-slate-100 font-sans text-slate-800 overflow-x-hidden">
 
       {/* 1. TOP NAVIGATION BAR */}
-      <nav className="h-16 bg-white border-b border-slate-200 px-4 sm:px-6 flex items-center justify-between shrink-0 z-40 shadow-xs">
-        <div className="flex items-center space-x-3">
-          <div className="bg-blue-600 p-2 rounded-xl text-white shadow-xs">
+      <nav className="bg-white border-b border-slate-200 px-4 py-3 flex flex-wrap items-center justify-between gap-2 shrink-0 z-40 shadow-xs">
+        <div className="flex items-center space-x-2.5 sm:space-x-3">
+          <div className="bg-blue-600 p-2 rounded-xl text-white shadow-xs shrink-0">
             <Wrench className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="font-extrabold text-xl tracking-tight text-blue-900 leading-none">
+            <h1 className="font-extrabold text-base sm:text-xl tracking-tight text-blue-900 leading-none">
               Welcome, {user?.name || 'Customer'}
             </h1>
-            <p className="text-[11px] text-slate-400 font-medium leading-none mt-0.5">
+            <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium leading-none mt-0.5">
               Live Verified Specialists • Real-Time Firestore Sync
             </p>
           </div>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Real-time Status Badge */}
-          <div className="hidden sm:flex items-center space-x-2 bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1.5 rounded-full text-xs font-semibold">
+          <div className="hidden sm:flex items-center space-x-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-1.5 rounded-full text-xs font-semibold">
             <Radio className="h-3.5 w-3.5 text-emerald-600 animate-pulse" />
             <span>{providers.length} Provider{providers.length === 1 ? '' : 's'} Online</span>
           </div>
 
-          {/* Detect GPS Location Button */}
-          <button
-            type="button"
-            onClick={handleDetectCurrentLocation}
-            disabled={isDetectingGPS}
-            title="Detect current GPS location from your device"
-            className="flex items-center space-x-1.5 text-blue-700 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 text-xs font-bold rounded-xl border border-blue-200 transition cursor-pointer"
-          >
-            {isDetectingGPS ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-600" />
-            ) : (
-              <Crosshair className="h-3.5 w-3.5 text-blue-600" />
-            )}
-            <span className="hidden sm:inline">{isDetectingGPS ? 'Detecting GPS...' : 'Detect GPS'}</span>
-          </button>
-
           {/* Reset Map View Button */}
           <button
+            type="button"
             onClick={() => setMapTarget({ lat: customerCoords.lat, lng: customerCoords.lng })}
             title="Recenter on My Location"
-            className="hidden md:flex items-center space-x-1 text-slate-600 hover:text-blue-600 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-200 hover:border-blue-300 transition cursor-pointer"
+            className="hidden md:flex items-center space-x-1 text-slate-600 hover:text-blue-600 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-200 hover:border-blue-300 transition cursor-pointer min-h-[36px]"
           >
             <MapPin className="h-3.5 w-3.5" />
             <span>My Spot</span>
@@ -749,8 +786,9 @@ export default function CustomerDashboard() {
 
           {/* Logout Button */}
           <button
+            type="button"
             onClick={handleLogout}
-            className="flex items-center space-x-1.5 bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-red-600 px-3.5 py-1.5 rounded-lg border border-slate-200 hover:border-red-200 text-xs font-semibold transition cursor-pointer"
+            className="min-h-[36px] sm:min-h-[40px] flex items-center space-x-1.5 bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-red-600 px-3.5 py-1.5 rounded-xl border border-slate-200 hover:border-red-200 text-xs font-bold transition cursor-pointer shrink-0"
           >
             <LogOut className="h-3.5 w-3.5" />
             <span>Logout</span>
@@ -758,11 +796,80 @@ export default function CustomerDashboard() {
         </div>
       </nav>
 
-      {/* 2. MAIN TWO-COLUMN SPLIT SCREEN CONTENT */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+      {/* COMPACT 'YOUR SERVICE LOCATION' BAR */}
+      <div className="bg-white border-b border-slate-200 px-4 py-2.5 sm:px-6 shadow-2xs shrink-0 z-20">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          {/* Address & Status Display */}
+          <div className="flex items-center space-x-2.5 min-w-0 flex-1">
+            <div className="p-2 bg-blue-50 text-blue-600 rounded-xl shrink-0">
+              <MapPin className="h-4 w-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center space-x-2">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  Your Service Location:
+                </span>
+                {isSavingLoc && (
+                  <span className="text-[10px] text-blue-600 font-bold flex items-center bg-blue-50 px-2 py-0.5 rounded-full">
+                    <Loader2 className="h-2.5 w-2.5 animate-spin mr-1" />
+                    Saving to Firestore...
+                  </span>
+                )}
+                {locationSavedAlert && (
+                  <span className="text-[10px] text-emerald-700 font-bold flex items-center bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full animate-in fade-in">
+                    <CheckCircle2 className="h-2.5 w-2.5 mr-1 text-emerald-600" />
+                    Saved to Firestore!
+                  </span>
+                )}
+              </div>
+              <p
+                className={`text-xs sm:text-sm font-semibold truncate ${
+                  customerCoords.address ? 'text-slate-900' : 'text-slate-400 italic'
+                }`}
+                title={customerCoords.address || 'Location not set'}
+              >
+                {customerCoords.address || 'Location not set'}
+              </p>
+            </div>
+          </div>
+
+          {/* Nominatim Search Input & Detect My Location Button */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
+            <div className="w-full sm:w-72 md:w-80">
+              <AddressSearchBar
+                onSelectLocation={handleAddressSearchSelect}
+                placeholder="Search your area, e.g. Indiranagar, Bengaluru"
+                initialValue=""
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={handleDetectCurrentLocation}
+              disabled={isDetectingGPS}
+              className="min-h-[40px] px-3.5 py-2 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center space-x-1.5 cursor-pointer shrink-0"
+            >
+              {isDetectingGPS ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <span>Detecting...</span>
+                </>
+              ) : (
+                <>
+                  <Crosshair className="h-3.5 w-3.5" />
+                  <span>Detect My Location</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. MAIN TWO-COLUMN SPLIT SCREEN CONTENT (Stacks vertically on mobile, side-by-side on lg) */}
+      <div className="flex-1 flex flex-col lg:flex-row relative">
 
         {/* LEFT COLUMN: Segmented Views (Find Specialists vs My Bookings) */}
-        <div className="w-full lg:w-1/2 xl:w-5/12 h-full flex flex-col bg-slate-50 border-r border-slate-200 z-10">
+        <div className="w-full lg:w-1/2 xl:w-5/12 flex flex-col bg-slate-50 border-r border-slate-200 z-10 lg:min-h-[550px]">
 
           {/* View Mode Switcher: Specialists vs My Bookings */}
           <div className="p-3 bg-white border-b border-slate-200">
@@ -814,15 +921,16 @@ export default function CustomerDashboard() {
                 </div>
 
                 {/* CATEGORY FILTER BAR */}
-                <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 text-xs font-medium scrollbar-none">
+                <div className="flex overflow-x-auto gap-2 pb-2 whitespace-nowrap text-xs font-medium scrollbar-none">
                   {categories.map((cat) => (
                     <button
                       key={cat.name}
                       onClick={() => setSelectedCategory(cat.name)}
-                      className={`px-3 py-1.5 rounded-full shrink-0 transition cursor-pointer flex items-center space-x-1 ${selectedCategory === cat.name
-                        ? 'bg-blue-600 text-white font-semibold shadow-xs'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
+                      className={`min-h-[40px] px-3.5 py-2 rounded-full shrink-0 transition cursor-pointer flex items-center space-x-1.5 ${
+                        selectedCategory === cat.name
+                          ? 'bg-blue-600 text-white font-semibold shadow-xs'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
                     >
                       <span>{cat.name}</span>
                     </button>
@@ -1039,7 +1147,7 @@ export default function CustomerDashboard() {
                         </div>
 
                         {/* Bottom: Rate & Book Now Button */}
-                        <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                        <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
                           <div>
                             <span className="text-[11px] text-slate-400 font-medium block">Rate per visit</span>
                             <div className="flex items-baseline">
@@ -1048,19 +1156,19 @@ export default function CustomerDashboard() {
                             </div>
                           </div>
 
-                          <div className="flex items-center space-x-2">
+                          <div className="flex flex-wrap gap-2 items-center">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleFocusProvider(provider, coords);
                               }}
-                              className="text-xs font-medium text-slate-600 hover:text-blue-600 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition cursor-pointer"
+                              className="min-h-[40px] text-xs font-semibold text-slate-700 hover:text-blue-600 px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 transition cursor-pointer flex items-center justify-center"
                             >
                               Show on Map
                             </button>
                             <button
                               onClick={(e) => handleBookNowClick(provider, e)}
-                              className="bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-xs flex items-center space-x-1 cursor-pointer"
+                              className="min-h-[40px] bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-xs flex items-center justify-center space-x-1 cursor-pointer"
                             >
                               <span>Book Now</span>
                               <ChevronRight className="h-3.5 w-3.5" />
@@ -1204,15 +1312,15 @@ export default function CustomerDashboard() {
                         </div>
 
                         {/* Real-time Call, WhatsApp and Message Options */}
-                        <div className="flex flex-wrap items-center gap-1.5">
+                        <div className="flex flex-wrap items-center gap-2">
                           {/* CANCEL BOOKING BUTTON (For 'pending' bookings) */}
                           {booking.status === 'pending' && (
                             <button
                               type="button"
                               onClick={() => handleCancelBooking(booking.id)}
-                              className="bg-white hover:bg-rose-50 text-rose-600 hover:text-rose-700 border border-rose-200 hover:border-rose-300 px-3 py-1.5 rounded-xl font-bold transition shadow-2xs flex items-center space-x-1 cursor-pointer"
+                              className="min-h-[40px] bg-white hover:bg-rose-50 text-rose-600 hover:text-rose-700 border border-rose-200 hover:border-rose-300 px-3.5 py-2 rounded-xl font-bold transition shadow-2xs flex items-center space-x-1.5 cursor-pointer text-xs"
                             >
-                              <XCircle className="h-3.5 w-3.5" />
+                              <XCircle className="h-4 w-4" />
                               <span>Cancel Booking</span>
                             </button>
                           )}
@@ -1220,17 +1328,17 @@ export default function CustomerDashboard() {
                           {/* RATE & REVIEW FLOW (When status === 'completed') */}
                           {booking.status === 'completed' && (
                             booking.reviewed ? (
-                              <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center shadow-2xs">
-                                <Star className="h-3.5 w-3.5 fill-emerald-600 text-emerald-600 mr-1" />
+                              <span className="min-h-[40px] bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-2 rounded-xl text-xs font-bold flex items-center shadow-2xs">
+                                <Star className="h-4 w-4 fill-emerald-600 text-emerald-600 mr-1.5" />
                                 <span>Reviewed ★ {booking.rating || 5}</span>
                               </span>
                             ) : (
                               <button
                                 type="button"
                                 onClick={() => setActiveReviewBooking(booking)}
-                                className="bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-white px-3 py-1.5 rounded-xl font-bold text-xs transition shadow-xs flex items-center space-x-1 cursor-pointer animate-pulse"
+                                className="min-h-[40px] bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-white px-3.5 py-2 rounded-xl font-bold text-xs transition shadow-xs flex items-center space-x-1.5 cursor-pointer animate-pulse"
                               >
-                                <Star className="h-3.5 w-3.5 fill-current" />
+                                <Star className="h-4 w-4 fill-current" />
                                 <span>Rate & Review</span>
                               </button>
                             )
@@ -1240,9 +1348,9 @@ export default function CustomerDashboard() {
                           <a
                             href={`tel:${booking.providerPhone || '+91 98765 12345'}`}
                             title={`Call Provider: ${booking.providerPhone || '+91 98765 12345'}`}
-                            className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white px-3 py-1.5 rounded-xl font-bold transition shadow-xs flex items-center space-x-1 cursor-pointer"
+                            className="min-h-[40px] bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white px-3.5 py-2 rounded-xl font-bold transition shadow-xs flex items-center space-x-1.5 cursor-pointer text-xs"
                           >
-                            <Phone className="h-3.5 w-3.5" />
+                            <Phone className="h-4 w-4" />
                             <span>Call</span>
                             {booking.providerPhone && (
                               <span className="text-[10px] opacity-85 hidden 2xl:inline ml-0.5 font-normal">
@@ -1264,9 +1372,9 @@ export default function CustomerDashboard() {
                               target="_blank"
                               rel="noopener noreferrer"
                               title="Chat with Provider on WhatsApp"
-                              className="bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] text-white px-3 py-1.5 rounded-xl font-bold transition shadow-xs flex items-center space-x-1 cursor-pointer"
+                              className="min-h-[40px] bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] text-white px-3.5 py-2 rounded-xl font-bold transition shadow-xs flex items-center space-x-1.5 cursor-pointer text-xs"
                             >
-                              <WhatsAppIcon className="h-3.5 w-3.5" />
+                              <WhatsAppIcon className="h-4 w-4" />
                               <span>WhatsApp</span>
                             </a>
                           )}
@@ -1275,9 +1383,9 @@ export default function CustomerDashboard() {
                           <button
                             type="button"
                             onClick={() => setActiveChatBooking(booking)}
-                            className="bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white px-3 py-1.5 rounded-xl font-bold transition shadow-xs flex items-center space-x-1 cursor-pointer"
+                            className="min-h-[40px] bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white px-3.5 py-2 rounded-xl font-bold transition shadow-xs flex items-center space-x-1.5 cursor-pointer text-xs"
                           >
-                            <MessageSquare className="h-3.5 w-3.5" />
+                            <MessageSquare className="h-4 w-4" />
                             <span>Message</span>
                           </button>
                         </div>
@@ -1292,69 +1400,22 @@ export default function CustomerDashboard() {
         </div>
 
         {/* RIGHT COLUMN: Interactive Leaflet Map with Real Provider Pins */}
-        <div className="w-full lg:w-1/2 xl:w-7/12 h-[380px] lg:h-full relative bg-slate-200">
+        <div className="w-full lg:w-1/2 xl:w-7/12 h-[300px] sm:h-[380px] lg:h-[550px] relative bg-slate-200 z-0">
 
-          {/* FLOATING TOP CONTROLS: NOMINATIM SEARCH BAR & HELPER LABEL */}
-          <div className="absolute top-4 left-4 right-4 sm:right-auto sm:w-[380px] z-[999] pointer-events-auto space-y-2">
-            {/* Free OpenStreetMap Nominatim Address Search Bar */}
-            <div className="bg-white/95 backdrop-blur-xs p-1.5 rounded-2xl shadow-xl border border-slate-200">
-              <AddressSearchBar
-                onSelectLocation={handleAddressSearchSelect}
-                placeholder="Search your area, e.g. Indiranagar, Bengaluru"
-                initialValue={customerCoords.address}
-              />
-            </div>
-
-            {/* Helper Label */}
-            <div className="bg-white/95 backdrop-blur-xs px-3.5 py-2 rounded-2xl shadow-md border border-slate-200 text-xs text-slate-800 flex items-center space-x-2">
-              <MapPin className="h-4 w-4 text-blue-600 shrink-0" />
-              <span className="font-semibold text-slate-700">
-                Location not exact? Click or drag the pin to your exact spot.
-              </span>
-            </div>
-
-            {/* Confirm Spot Button shown when user moves their pin */}
-            {hasMovedLocation && (
-              <div className="bg-emerald-600 text-white p-3 rounded-2xl shadow-lg flex items-center justify-between text-xs animate-in fade-in slide-in-from-top-2">
-                <div className="min-w-0 pr-2">
-                  <span className="font-bold block">New spot chosen!</span>
-                  {customerCoords.address && (
-                    <span className="text-[10px] text-emerald-100 block truncate font-medium">
-                      {customerCoords.address}
-                    </span>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={handleConfirmCustomerLocation}
-                  disabled={isSavingCustomerLoc}
-                  className="bg-white text-emerald-800 hover:bg-emerald-50 px-3 py-1.5 rounded-xl font-bold text-xs transition cursor-pointer shadow-xs flex items-center space-x-1 shrink-0"
-                >
-                  {isSavingCustomerLoc ? (
-                    <>
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      <span>Saving...</span>
-                    </>
-                  ) : (
-                    <span>Confirm & Save</span>
-                  )}
-                </button>
-              </div>
-            )}
-
-            {locationSavedAlert && (
-              <div className="bg-emerald-100 border border-emerald-300 text-emerald-900 px-3 py-2 rounded-xl shadow-md text-xs font-bold flex items-center space-x-1.5 animate-in fade-in">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                <span>Exact address & coordinates saved to Firestore!</span>
-              </div>
-            )}
+          {/* Helper Label */}
+          <div className="absolute top-3 left-3 sm:top-4 sm:left-4 z-10 pointer-events-auto bg-white/95 backdrop-blur-xs px-3.5 py-2 rounded-2xl shadow-md border border-slate-200 text-xs text-slate-800 flex items-center space-x-2 max-w-[280px] sm:max-w-none">
+            <MapPin className="h-4 w-4 text-blue-600 shrink-0" />
+            <span className="font-semibold text-slate-700">
+              Location not exact? Click or drag the pin to your exact spot.
+            </span>
           </div>
 
           <MapContainer
             center={[customerCoords.lat, customerCoords.lng]}
             zoom={14}
             scrollWheelZoom={true}
-            style={{ height: '100%', width: '100%', zIndex: 1 }}
+            style={{ height: '100%', width: '100%', zIndex: 0 }}
+            className="z-0"
           >
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -1491,7 +1552,7 @@ export default function CustomerDashboard() {
           </MapContainer>
 
           {/* Floating Map Legend Overlay */}
-          <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-xs p-3.5 rounded-2xl shadow-lg border border-slate-200 z-[999] text-xs space-y-2 pointer-events-auto max-w-[220px]">
+          <div className="absolute top-3 right-3 sm:top-4 sm:right-4 bg-white/95 backdrop-blur-xs p-3 rounded-2xl shadow-lg border border-slate-200 z-10 text-xs space-y-1.5 pointer-events-auto max-w-[200px] hidden sm:block">
             <span className="font-bold text-slate-900 block text-[11px] uppercase tracking-wider">
               Live Map Legend
             </span>
@@ -1515,8 +1576,8 @@ export default function CustomerDashboard() {
 
       {/* 3. BOOKING MODAL */}
       {activeBookingProvider && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-150 border border-slate-200">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white rounded-3xl w-[95%] max-w-md max-h-[85vh] overflow-y-auto mx-auto z-50 shadow-2xl animate-in zoom-in-95 duration-150 border border-slate-200">
             {/* Modal Header */}
             <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white flex justify-between items-start">
               <div>
